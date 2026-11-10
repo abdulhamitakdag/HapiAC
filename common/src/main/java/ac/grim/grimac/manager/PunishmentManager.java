@@ -75,6 +75,11 @@ public class PunishmentManager implements ConfigReloadable {
                         command = command.substring(1);
                     }
                     for (AbstractCheck check : player.getChecks()) { // o(n) * o(n)?
+                        // HapiAC: hapi.* check'leri yalnizca TAM adla eslesir; mevcut "Aim" gibi gruplar
+                        // icerme eslesmesiyle AimSnap/AimGrid... check'lerini yutup kendi cezasina baglamasin
+                        if (check instanceof Check hapiCheck && hapiCheck.getStableKey().startsWith("hapi.")) {
+                            if (!check.getCheckName().toLowerCase(Locale.ROOT).equals(command)) continue;
+                        }
                         if (check.getCheckName().toLowerCase(Locale.ROOT).contains(command)
                                 || check.getAlternativeName().toLowerCase(Locale.ROOT).contains(command)) { // Some checks have equivalent names like AntiKB and AntiKnockback
                             if (exclude) {
@@ -102,6 +107,23 @@ public class PunishmentManager implements ConfigReloadable {
                 }
 
                 groups.add(new PunishGroup(checksList, parsed, removeViolationsAfter * 1000));
+            }
+
+            // HapiAC: punishments.yml'de hicbir grupta gecmeyen hapi.* check'leri kapali kalmasin.
+            // Varsayilan grup yalnizca alarm + log uretir; ceza icin hapi.yml'deki punish-* ya da
+            // punishments.yml'e elle eklenen grup kullanilir.
+            List<AbstractCheck> hapiChecks = new ArrayList<>();
+            for (AbstractCheck check : player.getChecks()) {
+                if (!check.isEnabled() && check instanceof Check grimCheck && grimCheck.getStableKey().startsWith("hapi.")) {
+                    check.setEnabled(true);
+                    hapiChecks.add(check);
+                }
+            }
+            if (!hapiChecks.isEmpty()) {
+                List<ParsedCommand> hapiCommands = new ArrayList<>();
+                hapiCommands.add(new ParsedCommand(1, 1, "[alert]"));
+                hapiCommands.add(new ParsedCommand(1, 1, "[log]"));
+                groups.add(new PunishGroup(hapiChecks, hapiCommands, 300 * 1000));
             }
         } catch (Exception e) {
             LogUtil.error("Error while loading punishments.yml! This is likely your fault!", e);

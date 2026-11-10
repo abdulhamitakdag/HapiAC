@@ -7,6 +7,7 @@ import ac.grim.grimac.api.event.events.FlagEvent;
 import ac.grim.grimac.api.storage.verbose.Verbose;
 import ac.grim.grimac.api.storage.verbose.VerboseBuf;
 import ac.grim.grimac.api.storage.verbose.VerboseRenderContext;
+import ac.grim.grimac.hapi.HapiFlagLog;
 import ac.grim.grimac.internal.storage.verbose.VerboseRegistry;
 import ac.grim.grimac.player.GrimPlayer;
 import lombok.Getter;
@@ -14,6 +15,7 @@ import lombok.Setter;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.List;
 import java.util.Objects;
 import java.util.function.Supplier;
 
@@ -50,6 +52,15 @@ public class Check extends GrimProcessor implements AbstractCheck {
     private boolean exemptPermission;
     private boolean noSetbackPermission;
     private boolean noModifyPacketPermission;
+
+    // HapiAC: hapi.yml -> hapi.checks.<configName>.* (reload aninda alanlara cozulur, sicak yolda harita aramasi yok)
+    private boolean hapiEnabled = true;
+    private double hapiAlertFrom;
+    private String @Nullable [] hapiExemptWorlds;
+    private double hapiPunishVl;
+    private @Nullable String hapiPunishCommand;
+    private long hapiPunishCooldownMs;
+    private long hapiLastPunish;
 
     public Check(final @NotNull GrimPlayer player) {
         super(player, false);
@@ -129,7 +140,7 @@ public class Check extends GrimProcessor implements AbstractCheck {
     }
 
     private boolean recordFlag(@NotNull Supplier<String> verbose) {
-        if (player.disableGrim || (experimental && !player.isExperimentalChecks()) || exemptPermission)
+        if (player.disableGrim || (experimental && !player.isExperimentalChecks()) || exemptPermission || hapiBlocked())
             return false; // Avoid calling event if disabled
 
         if (FLAG_CHANNEL.fire(player, this, verbose)) return false;
@@ -137,7 +148,9 @@ public class Check extends GrimProcessor implements AbstractCheck {
         lastFlagStoredBinaryVerbose = false;
         player.punishmentManager.handleViolation(this);
         lastViolationTime = System.currentTimeMillis();
+        HapiFlagLog.record(player, this, verbose.get());
         violations++;
+        hapiPunish();
         return true;
     }
 
@@ -145,7 +158,7 @@ public class Check extends GrimProcessor implements AbstractCheck {
         Supplier<String> rendered = verbose.rendered();
         byte[] verboseData = verbose.data();
 
-        if (player.disableGrim || (experimental && !player.isExperimentalChecks()) || exemptPermission)
+        if (player.disableGrim || (experimental && !player.isExperimentalChecks()) || exemptPermission || hapiBlocked())
             return false; // Avoid calling event if disabled
 
         if (FLAG_CHANNEL.fire(player, this, rendered)) return false;
@@ -153,10 +166,43 @@ public class Check extends GrimProcessor implements AbstractCheck {
         lastFlagStoredBinaryVerbose = true;
         player.punishmentManager.handleViolation(this);
         lastViolationTime = System.currentTimeMillis();
+        HapiFlagLog.record(player, this, rendered.get());
         violations++;
+        hapiPunish();
         GrimAPI.INSTANCE.getDataStoreLifecycle().liveWriteHooks()
                 .recordFlagDataFromCheck(player, this, violations, verboseData);
         return true;
+    }
+
+    // HapiAC: check kapaliysa ya da oyuncu muaf dunyadaysa flag hic olusmaz
+    private boolean hapiBlocked() {
+        if (!hapiEnabled) return true;
+        final String[] worlds = hapiExemptWorlds;
+        if (worlds == null) return false;
+        final String world = player.getWorldName();
+        if (world == null) return false;
+        for (String exempt : worlds) {
+            if (exempt.equalsIgnoreCase(world)) return true;
+        }
+        return false;
+    }
+
+    // HapiAC: check-basina ceza komutu (punishments.yml gruplarindan bagimsiz)
+    private void hapiPunish() {
+        final String command = hapiPunishCommand;
+        if (command == null || hapiPunishVl <= 0 || violations < hapiPunishVl) return;
+        final long now = System.currentTimeMillis();
+        if (now - hapiLastPunish < hapiPunishCooldownMs) return;
+        hapiLastPunish = now;
+        final String name = player.getName();
+        if (name == null) return;
+        final String cmd = command
+                .replace("%player%", name)
+                .replace("%check_name%", displayName)
+                .replace("%vl%", Integer.toString((int) violations));
+        GrimAPI.INSTANCE.getScheduler().getGlobalRegionScheduler().run(GrimAPI.INSTANCE.getGrimPlugin(), () ->
+                GrimAPI.INSTANCE.getPlatformServer().dispatchCommand(
+                        GrimAPI.INSTANCE.getPlatformServer().getConsoleSender(), cmd));
     }
 
     private @NotNull BinaryVerbose lazyVerbose(@NotNull Verbose.Writer writer) {
@@ -221,6 +267,16 @@ public class Check extends GrimProcessor implements AbstractCheck {
         description = configuration.getStringElse(getConfigName() + ".description", defaultDescription);
 
         if (setbackVL == -1) setbackVL = Double.MAX_VALUE;
+
+        final String hapi = "hapi.checks." + getConfigName() + ".";
+        hapiEnabled = configuration.getBooleanElse(hapi + "enabled", true);
+        hapiAlertFrom = configuration.getDoubleElse(hapi + "dont-alert-until", defaultAlertFrom());
+        final List<String> worlds = configuration.getStringListElse(hapi + "exempt-worlds", List.of());
+        hapiExemptWorlds = worlds == null || worlds.isEmpty() ? null : worlds.toArray(new String[0]);
+        hapiPunishVl = configuration.getDoubleElse(hapi + "punish-vl", 0);
+        final String punish = configuration.getStringElse(hapi + "punish-command", "");
+        hapiPunishCommand = punish == null || punish.isBlank() ? null : punish;
+        hapiPunishCooldownMs = (long) (configuration.getDoubleElse(hapi + "punish-cooldown-seconds", 60) * 1000);
         super.reload(configuration);
     }
 
@@ -228,7 +284,13 @@ public class Check extends GrimProcessor implements AbstractCheck {
         return alert(constant(verbose));
     }
 
+    /** HapiAC: hapi.yml'de deger yoksa kullanilacak alarm esigi; sezgisel check'ler yukseltir. */
+    protected double defaultAlertFrom() {
+        return 0;
+    }
+
     public boolean alert(@NotNull Supplier<String> verbose) {
+        if (violations < hapiAlertFrom) return false; // flag sayildi + loglandi, yetkiliye henuz gosterilmez
         return player.punishmentManager.handleAlert(player, memoize(Objects.requireNonNull(verbose, "verbose")), this);
     }
 

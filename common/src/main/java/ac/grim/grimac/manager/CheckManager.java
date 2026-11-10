@@ -20,6 +20,15 @@ import ac.grim.grimac.checks.impl.elytra.*;
 import ac.grim.grimac.checks.impl.exploit.ExploitA;
 import ac.grim.grimac.checks.impl.exploit.ExploitB;
 import ac.grim.grimac.checks.impl.groundspoof.NoFall;
+import ac.grim.grimac.checks.impl.hapi.AimAxis;
+import ac.grim.grimac.checks.impl.hapi.AimGrid;
+import ac.grim.grimac.checks.impl.hapi.HitAccuracy;
+import ac.grim.grimac.checks.impl.hapi.AimLinear;
+import ac.grim.grimac.checks.impl.hapi.AimSnap;
+import ac.grim.grimac.checks.impl.hapi.AimTrack;
+import ac.grim.grimac.checks.impl.hapi.AttackRhythm;
+import ac.grim.grimac.checks.impl.hapi.ClickRate;
+import ac.grim.grimac.checks.impl.hapi.CombatTracker;
 import ac.grim.grimac.checks.impl.misc.ClientBrand;
 import ac.grim.grimac.checks.impl.misc.GhostBlockMitigation;
 import ac.grim.grimac.checks.impl.misc.Post;
@@ -250,6 +259,16 @@ public class CheckManager implements BasicReloadable {
                 .put(TransactionOrder.class, new TransactionOrder(player))
                 .put(VehicleC.class, new VehicleC(player))
                 .put(Hitboxes.class, new Hitboxes(player)) // Hitboxes is invoked by Reach
+                // HapiAC vurus modulu: check'lerin dinleyicisi yok, hepsini CombatTracker cagirir
+                .put(AimSnap.class, new AimSnap(player))
+                .put(AimLinear.class, new AimLinear(player))
+                .put(AimGrid.class, new AimGrid(player))
+                .put(AimTrack.class, new AimTrack(player))
+                .put(AttackRhythm.class, new AttackRhythm(player))
+                .put(ClickRate.class, new ClickRate(player))
+                .put(AimAxis.class, new AimAxis(player))
+                .put(HitAccuracy.class, new HitAccuracy(player))
+                .put(CombatTracker.class, new CombatTracker(player))
                 .build();
 
         ArrayList<AbstractCheck> checks = new ArrayList<>();

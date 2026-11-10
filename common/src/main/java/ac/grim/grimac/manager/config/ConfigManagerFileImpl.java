@@ -70,6 +70,7 @@ public class ConfigManagerFileImpl implements ConfigManager, BasicReloadable {
             config.addSource(GrimAPI.class, "messages", getConfigFile("messages.yml"));
             config.addSource(GrimAPI.class, "discord", getConfigFile("discord.yml"));
             config.addSource(GrimAPI.class, "punishments", getConfigFile("punishments.yml"));
+            config.addSource(GrimAPI.class, "hapi", getConfigFile("hapi.yml")); // HapiAC
             // database.yml + per-backend files load through here too; their
             // keys are namespaced under `database:` / `<id>:` wrappers so
             // they don't collide with config.yml / discord.yml / each other
