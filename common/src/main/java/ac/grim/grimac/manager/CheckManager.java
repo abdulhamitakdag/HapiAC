@@ -268,6 +268,7 @@ public class CheckManager implements BasicReloadable {
                 .put(ClickRate.class, new ClickRate(player))
                 .put(AimAxis.class, new AimAxis(player))
                 .put(HitAccuracy.class, new HitAccuracy(player))
+                .put(ac.grim.grimac.checks.impl.hapi.WallHit.class, new ac.grim.grimac.checks.impl.hapi.WallHit(player)) // Reach cagirir
                 .put(CombatTracker.class, new CombatTracker(player))
                 .build();
 

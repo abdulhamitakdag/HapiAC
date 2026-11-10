@@ -282,6 +282,10 @@ public class Reach extends Check implements PacketReceiveListener {
         // +3 would be 3 + 3 = 6, which is the pre-1.20.5 behaviour, preventing "Missed Hitbox"
         final double distance = maxReach + 3;
 
+        // HapiAC: duvar arkasi vurus denetimi isabet eden isinlari buradan alir
+        final ac.grim.grimac.checks.impl.hapi.WallHit wallHit = isPrediction ? null : player.checkManager.get(ac.grim.grimac.checks.impl.hapi.WallHit.class);
+        if (wallHit != null) wallHit.begin();
+
         final double[] possibleEyeHeights = player.getPossibleEyeHeights();
         for (Vector3dm lookVec : possibleLookDirs) {
             lookVec.multiply(distance);
@@ -299,6 +303,7 @@ public class Reach extends Check implements PacketReceiveListener {
 
                 if (intercept != null) {
                     minDistance = Math.min(eyePos.distance(intercept), minDistance);
+                    if (wallHit != null) wallHit.onRay(eyePos, intercept);
                 }
             }
         }
@@ -313,6 +318,7 @@ public class Reach extends Check implements PacketReceiveListener {
                 return new CheckResult(ResultType.REACH, minDistance, movementAllowance, attackRangeMovement != null);
             } else {
                 cancelBuffer = Math.max(0, cancelBuffer - 0.25);
+                if (wallHit != null && minDistance > 0) wallHit.end();
             }
         }
 

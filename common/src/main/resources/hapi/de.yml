@@ -68,3 +68,6 @@ hapi:
     HitAccuracy:
       enabled: true
       dont-alert-until: 2
+    WallHit:
+      enabled: true
+      dont-alert-until: 2

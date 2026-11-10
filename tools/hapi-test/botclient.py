@@ -309,6 +309,22 @@ def run(scenario, seconds):
                 if t >= nxt[0]:
                     attacker.attack(target) if (scenario == "kilit" or random.random() < 0.8) else attacker.swing()
                     nxt[0] = t + random.choice([10, 11, 12, 13, 14, 15, 17, 20])
+            elif scenario in ("duvar", "acik"):  # kurban 3 blok onde sabit; duvar=araya tas duvar orulur, acik=duvar kaldirilir
+                bx, bz = attacker.x, attacker.z + 3.0
+                if fifo is not None and t % 20 == 1 and t < 100:
+                    fx, fy, fz = math.floor(attacker.x), int(attacker.y), math.floor(attacker.z) + 1
+                    fifo.write("tp HapiKurban %.3f %.1f %.3f\n" % (bx, victim.y, bz))
+                    fifo.write("fill %d %d %d %d %d %d %s\n" % (fx - 1, fy, fz, fx + 1, fy + int(os.environ.get("HAPI_YUK", "2")), fz, os.environ.get("HAPI_BLOK", "stone") if scenario == "duvar" else "air"))
+                    fifo.flush()
+                attacker.lerp_tick(target)
+                pos = attacker.rpos.get(target)
+                if pos is not None and t > 100:
+                    if t == 101 and os.environ.get("HAPI_PITCH"):
+                        attacker.rotate(0.0, float(os.environ["HAPI_PITCH"]))
+                    attacker.look_at(pos)
+                    if t >= nxt[0]:
+                        attacker.attack(target)
+                        nxt[0] = t + random.choice([10, 11, 12, 13, 14, 15, 17, 20])
             elif scenario == "spam":  # tick basina 2 vurus
                 attacker.attack(target)
                 attacker.attack(target)
