@@ -194,6 +194,7 @@ public class PunishmentManager implements ConfigReloadable {
                                 case "[proxy]" -> ProxyAlertMessenger.sendPluginMessage(cmd);
                                 case "[alert]" -> {
                                     sentDebug = true;
+                                    if (!check.hapiAlertAllowed()) break; // HapiAC: alarm seli siniri
                                     Component message = MessageUtil.miniMessage(cmd);
                                     if (testMode) { // secret test mode
                                         if (verboseListeners == null || verboseListeners.contains(player.platformPlayer)) {

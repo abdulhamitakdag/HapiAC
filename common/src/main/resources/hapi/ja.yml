@@ -32,9 +32,17 @@ hapi:
       # En çok 2 tick arayla vurulan iki oyuncu arasındaki en küçük açı (derece); 10 sn içinde 3 tekrar flag
       min-angle: 50
 
+  net:
+    combat-lag:
+      # Dövüş sırasındaki ortalama gecikme, oyuncunun dövüş dışı tabanından en az bu kadar ms
+      # VE en az bu kat fazlaysa dövüş şüpheli sayılır; üst üste bu kadar şüpheli dövüşte flag
+      min-increase-ms: 120
+      min-ratio: 1.8
+      fights-to-flag: 3
+
   # ---------------------------------------------------------------------------
   # Check başına ayarlar. Anahtar = check'in config adı (Grim'in kendi check'leri
-  # dahil: Reach, Timer, TimerLimit, FastBreak, AirLiquidPlace, Simulation ...).
+  # dahil: Reach, TimerA (= Timer), TimerLimit, FastBreak, AirLiquidPlace, Simulation ...).
   # Yazılmayan check varsayılanlarla çalışır.
   #
   #   enabled: false              -> check hiç flag üretmez
@@ -43,6 +51,7 @@ hapi:
   #   punish-vl: 20               -> ihlal sayısı buna ulaşınca punish-command çalışır
   #   punish-command: "kick %player% Hile şüphesi (%check_name%)"
   #   punish-cooldown-seconds: 60 -> aynı oyuncuya komutun tekrar çalışması için bekleme
+  #   alert-cooldown-seconds: 5   -> aynı oyuncu+check için alarm satırı en çok 5 sn'de bir (ihlal sayımı, log, ceza etkilenmez)
   #
   # Yer tutucular: %player% %check_name% %vl%
   # ---------------------------------------------------------------------------
@@ -80,3 +89,13 @@ hapi:
     InventoryHit:
       enabled: true
       dont-alert-until: 2
+    CombatLag:
+      enabled: true
+      dont-alert-until: 1
+    # Bağlantı takılması sonrası toparlanma bu üç check'te saniyede onlarca alarm üretir
+    TimerA:
+      alert-cooldown-seconds: 5
+    TimerLimit:
+      alert-cooldown-seconds: 5
+    TickTimer:
+      alert-cooldown-seconds: 5

@@ -48,7 +48,9 @@ public class TimerLimit extends Timer {
     @Override
     public void onReload(@NotNull ConfigManager config) {
         super.onReload(config);
-        limitAbuseOverPing = config.getLongElse(getConfigName() + ".ping-abuse-limit-threshold", 1000L);
+        // HapiAC: deger TimerLimit altinda yoksa TimerA altindakine dus (eski config'lerde esik ve drift oraya yazilmis)
+        clockDrift = (long) (config.getDoubleElse(getConfigName() + ".drift", config.getDoubleElse("TimerA.drift", 120.0)) * 1e6);
+        limitAbuseOverPing = config.getLongElse(getConfigName() + ".ping-abuse-limit-threshold", config.getLongElse("TimerA.ping-abuse-limit-threshold", 1000L));
         if (limitAbuseOverPing != -1) {
             limitAbuseOverPing *= (long) 1e6;
         }

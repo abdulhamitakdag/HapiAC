@@ -61,6 +61,9 @@ class Bot:
         self.epos = {}  # entity id -> [x, y, z] (sunucunun bu istemciye bildirdigi son konum)
         self.rpos = {}  # entity id -> [x, y, z] (istemcinin 3 tickte enterpole ettigi, ekranda gorunen konum)
         self.lerp = {}  # entity id -> kalan enterpolasyon adimi
+        self.pong_delay = 0.0  # saniye; >0 ise transaction yanitlari geciktirilir (backtrack/fakelag benzetimi)
+        self.pongq = []
+        self.plock = threading.Lock()
         self.pidc = {}  # paket kimligi -> alinan adet (HAPI_DEBUG ile yazdirilir)
         self.lock = threading.Lock()
         self.alive = True
@@ -147,7 +150,9 @@ class Bot:
         if pid == 0x26:  # keep alive
             self.send(0x1B, buf.take(8))
         elif pid == 0x36:  # ping (Grim transaction)
-            self.send(0x2C, buf.take(4))
+            with self.plock:
+                self.pongq.append((time.time() + self.pong_delay, buf.take(4)))
+            self.flush_pongs()
         elif pid == 0x0B:  # chunk batch finished
             self.send(0x0A, struct.pack(">f", 20.0))
         elif pid == 0x41:  # konum senkronu
@@ -224,6 +229,12 @@ class Bot:
     def use_block(self, x, y, z):  # bloga sag tik (sandik acmak icin); ust yuze, ortasina
         pos = ((x & 0x3FFFFFF) << 38) | ((z & 0x3FFFFFF) << 12) | (y & 0xFFF)
         self.send(0x3F, varint(0) + struct.pack(">Q", pos) + varint(1) + struct.pack(">fff", 0.5, 1.0, 0.5) + b"\x00\x00" + varint(1))
+
+    def flush_pongs(self):  # sirayi bozmadan, vadesi gelen yanitlari gonder
+        with self.plock:
+            now = time.time()
+            while self.pongq and self.pongq[0][0] <= now:
+                self.send(0x2C, self.pongq.pop(0)[1])
 
     def tick_end(self):
         self.send(0x0C)
@@ -362,6 +373,18 @@ def run(scenario, seconds):
                     if t >= nxt[0]:
                         attacker.attack(target)
                         nxt[0] = t + random.choice([10, 11, 12, 13, 14, 15, 17, 20])
+            elif scenario in ("gecikme", "sabitping"):  # 15 sn bos / 8 sn dovus; gecikme=yalniz dovuste +250 ms, sabitping=hep +250 ms
+                if fifo is not None and t % 20 == 1 and t < 60:
+                    fifo.write("tp HapiKurban %.3f %.1f %.3f\n" % (attacker.x, victim.y, attacker.z + 3.0))
+                    fifo.flush()
+                fighting = (t % 460) >= 300
+                attacker.pong_delay = 0.25 if (fighting or scenario == "sabitping") else 0.0
+                pos = attacker.epos.get(target)
+                if pos is not None and fighting:
+                    attacker.look_at(pos)
+                    if t >= nxt[0]:
+                        attacker.attack(target)
+                        nxt[0] = t + random.choice([10, 11, 12, 13, 14, 15, 17, 20])
             elif scenario == "spam":  # tick basina 2 vurus
                 attacker.attack(target)
                 attacker.attack(target)
@@ -373,6 +396,7 @@ def run(scenario, seconds):
         if False:  # konum kalp atisi kapali (bot zamanlamasi Timer/NoFall setback'i uretiyordu)
             for b in (attacker, victim):
                 b.send(0x1D, struct.pack(">dddB", b.x, b.y, b.z, 1))
+        attacker.flush_pongs()
         attacker.tick_end()
         victim.tick_end()
         if victim2 is not None and victim2.ready and victim2.alive:

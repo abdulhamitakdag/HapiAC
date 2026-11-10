@@ -61,6 +61,8 @@ public class Check extends GrimProcessor implements AbstractCheck {
     private @Nullable String hapiPunishCommand;
     private long hapiPunishCooldownMs;
     private long hapiLastPunish;
+    private long hapiAlertCooldownMs;
+    private long hapiLastAlert;
 
     public Check(final @NotNull GrimPlayer player) {
         super(player, false);
@@ -277,11 +279,24 @@ public class Check extends GrimProcessor implements AbstractCheck {
         final String punish = configuration.getStringElse(hapi + "punish-command", "");
         hapiPunishCommand = punish == null || punish.isBlank() ? null : punish;
         hapiPunishCooldownMs = (long) (configuration.getDoubleElse(hapi + "punish-cooldown-seconds", 60) * 1000);
+        hapiAlertCooldownMs = (long) (configuration.getDoubleElse(hapi + "alert-cooldown-seconds", 0) * 1000);
         super.reload(configuration);
     }
 
     public boolean alert(String verbose) {
         return alert(constant(verbose));
+    }
+
+    /**
+     * HapiAC: yetkiliye/konsola giden [alert] satiri icin hiz siniri (alert-cooldown-seconds). Ihlal sayimi,
+     * log, setback ve ceza komutlari etkilenmez; yalnizca ayni oyuncu+check icin alarm seli kesilir.
+     */
+    public boolean hapiAlertAllowed() {
+        if (hapiAlertCooldownMs <= 0) return true;
+        final long now = System.currentTimeMillis();
+        if (now - hapiLastAlert < hapiAlertCooldownMs) return false;
+        hapiLastAlert = now;
+        return true;
     }
 
     /** HapiAC: hapi.yml'de deger yoksa kullanilacak alarm esigi; sezgisel check'ler yukseltir. */

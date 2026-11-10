@@ -37,6 +37,7 @@ public final class CombatTracker extends GrimProcessor implements PacketReceiveL
     private HitAccuracy hitAccuracy;
     private TargetSwitch targetSwitch;
     private InventoryHit inventoryHit;
+    private CombatLag combatLag;
 
     private int windowTicks; // onReload atar (super() icinde)
     private boolean moduleEnabled;
@@ -82,6 +83,7 @@ public final class CombatTracker extends GrimProcessor implements PacketReceiveL
         hitAccuracy = player.checkManager.get(HitAccuracy.class);
         targetSwitch = player.checkManager.get(TargetSwitch.class);
         inventoryHit = player.checkManager.get(InventoryHit.class);
+        combatLag = player.checkManager.get(CombatLag.class);
     }
 
     @Override
@@ -165,6 +167,7 @@ public final class CombatTracker extends GrimProcessor implements PacketReceiveL
                 attackRhythm.onAttack(tick);
                 lastPlayerAttackTick = tick;
             }
+            combatLag.onTick(tick - lastPlayerAttackTick <= windowTicks);
 
             if (tainted > 0) {
                 tainted--;
