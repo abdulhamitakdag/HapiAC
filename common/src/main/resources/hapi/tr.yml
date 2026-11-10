@@ -28,6 +28,9 @@ hapi:
       max-interval-stddev: 0.45
     click-rate:
       max-attacks-per-second: 18
+    target-switch:
+      # En çok 2 tick arayla vurulan iki oyuncu arasındaki en küçük açı (derece); 10 sn içinde 3 tekrar flag
+      min-angle: 50
 
   # ---------------------------------------------------------------------------
   # Check başına ayarlar. Anahtar = check'in config adı (Grim'in kendi check'leri
@@ -69,5 +72,11 @@ hapi:
       enabled: true
       dont-alert-until: 2
     WallHit:
+      enabled: true
+      dont-alert-until: 2
+    TargetSwitch:
+      enabled: true
+      dont-alert-until: 1
+    InventoryHit:
       enabled: true
       dont-alert-until: 2

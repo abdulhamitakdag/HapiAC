@@ -221,6 +221,10 @@ class Bot:
                 r[i] += (e[i] - r[i]) / n
             self.lerp[eid] = n - 1
 
+    def use_block(self, x, y, z):  # bloga sag tik (sandik acmak icin); ust yuze, ortasina
+        pos = ((x & 0x3FFFFFF) << 38) | ((z & 0x3FFFFFF) << 12) | (y & 0xFFF)
+        self.send(0x3F, varint(0) + struct.pack(">Q", pos) + varint(1) + struct.pack(">fff", 0.5, 1.0, 0.5) + b"\x00\x00" + varint(1))
+
     def tick_end(self):
         self.send(0x0C)
 
@@ -238,6 +242,11 @@ def run(scenario, seconds):
     victim.login()
     time.sleep(1.5)
     attacker.login()
+    victim2 = None
+    if scenario == "gecis":  # ikinci kurban (sunucuda max-players >= 3 olmali)
+        time.sleep(1.0)
+        victim2 = Bot("HapiKurban2")
+        victim2.login()
     t0 = time.time()
     while time.time() - t0 < 15 and not (victim.ready and attacker.ready):
         time.sleep(0.1)
@@ -325,6 +334,34 @@ def run(scenario, seconds):
                     if t >= nxt[0]:
                         attacker.attack(target)
                         nxt[0] = t + random.choice([10, 11, 12, 13, 14, 15, 17, 20])
+            elif scenario == "gecis":  # switch aura: 90 derece ayrik iki kurbana birer tick arayla vurus
+                target2 = attacker.entities.get(offline_uuid("HapiKurban2"))
+                if fifo is not None and t % 20 == 1 and t < 100:
+                    fifo.write("gamemode creative HapiKurban2\n")
+                    fifo.write("tp HapiKurban %.3f %.1f %.3f\n" % (attacker.x, victim.y, attacker.z + 3.0))
+                    fifo.write("tp HapiKurban2 %.3f %.1f %.3f\n" % (attacker.x - 3.0, victim.y, attacker.z))
+                    fifo.flush()
+                if target2 is not None and t > 100:
+                    phase = t % 30
+                    if phase in (0, 1):
+                        tid = target if phase == 0 else target2
+                        pos = attacker.epos.get(tid)
+                        if pos is not None:
+                            attacker.look_at(pos)
+                            attacker.attack(tid)
+            elif scenario == "sandik":  # yanina sandik konur, acilir, acikken vurulur
+                if fifo is not None and t % 20 == 1 and t < 60:
+                    fifo.write("tp HapiKurban %.3f %.1f %.3f\n" % (attacker.x, victim.y, attacker.z + 3.0))
+                    fifo.write("setblock %d %d %d chest\n" % (math.floor(attacker.x) + 1, int(attacker.y), math.floor(attacker.z)))
+                    fifo.flush()
+                pos = attacker.epos.get(target)
+                if pos is not None and t > 100:
+                    attacker.look_at(pos)
+                    if t == 140:
+                        attacker.use_block(math.floor(attacker.x) + 1, int(attacker.y), math.floor(attacker.z))
+                    if t >= nxt[0]:
+                        attacker.attack(target)
+                        nxt[0] = t + random.choice([10, 11, 12, 13, 14, 15, 17, 20])
             elif scenario == "spam":  # tick basina 2 vurus
                 attacker.attack(target)
                 attacker.attack(target)
@@ -338,6 +375,8 @@ def run(scenario, seconds):
                 b.send(0x1D, struct.pack(">dddB", b.x, b.y, b.z, 1))
         attacker.tick_end()
         victim.tick_end()
+        if victim2 is not None and victim2.ready and victim2.alive:
+            victim2.tick_end()
         tick += 1
         next_tick += 0.05
         delay = next_tick - time.time()

@@ -35,6 +35,8 @@ public final class CombatTracker extends GrimProcessor implements PacketReceiveL
     private ClickRate clickRate;
     private AimAxis aimAxis;
     private HitAccuracy hitAccuracy;
+    private TargetSwitch targetSwitch;
+    private InventoryHit inventoryHit;
 
     private int windowTicks; // onReload atar (super() icinde)
     private boolean moduleEnabled;
@@ -78,6 +80,8 @@ public final class CombatTracker extends GrimProcessor implements PacketReceiveL
         clickRate = player.checkManager.get(ClickRate.class);
         aimAxis = player.checkManager.get(AimAxis.class);
         hitAccuracy = player.checkManager.get(HitAccuracy.class);
+        targetSwitch = player.checkManager.get(TargetSwitch.class);
+        inventoryHit = player.checkManager.get(InventoryHit.class);
     }
 
     @Override
@@ -126,8 +130,18 @@ public final class CombatTracker extends GrimProcessor implements PacketReceiveL
 
     private void onAttack(int entityId) {
         attacksThisTick++;
+        if (aimSnap == null) init();
+        final boolean active = moduleEnabled && !player.disableGrim
+                && player.gamemode != GameMode.CREATIVE && player.gamemode != GameMode.SPECTATOR;
+        if (active) inventoryHit.onAttack();
+
         PacketEntity entity = player.compensatedEntities.entityMap.get(entityId);
         if (entity != null && !entity.isDead && entity.getType() == EntityTypes.PLAYER) {
+            // Baska bir oyuncuya, bir onceki vurustan en cok 2 tick sonra (ayni tick haric: onu MultiInteract yakalar)
+            if (active && entityId != targetId && !attackedPlayerThisTick && tick - lastPlayerAttackTick <= 2) {
+                final PacketEntity previous = player.compensatedEntities.entityMap.get(targetId);
+                if (previous != null && !previous.isDead) targetSwitch.onSwitch(tick, previous, entity);
+            }
             attackedPlayerThisTick = true;
             playerAttacksThisTick++;
             targetId = entityId;
