@@ -152,7 +152,7 @@ public class Check extends GrimProcessor implements AbstractCheck {
         player.punishmentManager.handleViolation(this);
         lastViolationTime = System.currentTimeMillis();
         player.hapiLastFlagged = this;
-        HapiFlagLog.record(player, this, verbose.get());
+        HapiFlagLog.record(player, this, verbose);
         violations++;
         hapiPunish();
         return true;
@@ -171,7 +171,7 @@ public class Check extends GrimProcessor implements AbstractCheck {
         player.punishmentManager.handleViolation(this);
         lastViolationTime = System.currentTimeMillis();
         player.hapiLastFlagged = this;
-        HapiFlagLog.record(player, this, rendered.get());
+        HapiFlagLog.record(player, this, rendered);
         violations++;
         hapiPunish();
         GrimAPI.INSTANCE.getDataStoreLifecycle().liveWriteHooks()

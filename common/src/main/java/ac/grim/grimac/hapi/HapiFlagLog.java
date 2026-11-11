@@ -24,6 +24,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.LongAdder;
+import java.util.function.Supplier;
 
 /**
  * HapiAC: her flag'i (alarm esigine takilsa bile) sayar ve gunluk dosyaya yazar.
@@ -68,9 +69,10 @@ public final class HapiFlagLog {
         return since;
     }
 
-    public static void record(GrimPlayer player, Check check, String verbose) {
+    public static void record(GrimPlayer player, Check check, Supplier<String> verbose) {
         try {
-            record0(player, check, verbose);
+            // Ayrinti metni yalnizca dosyaya yazilacaksa ve burada (try icinde) uretilir
+            record0(player, check, fileEnabled ? verbose.get() : null);
         } catch (RuntimeException e) { // kayit hatasi check'i (ve paket yolunu) asla bozmamali
             DROPPED.increment();
         }

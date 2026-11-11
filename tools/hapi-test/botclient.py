@@ -505,7 +505,7 @@ def run(scenario, seconds):
             elif scenario in ("kopru", "kopruegil", "koprutik", "snapkoy", "snaptut", "snapinsan", "hizlikoy", "hizliinsan"):
                 # Yapi modulu: insaatci kurbandir. Havadaki tek blogun ustune isinlanir, eline tas verilir.
                 if fifo is not None and t == 1:
-                    fifo.write("gamemode survival HapiKurban\ngive HapiKurban stone 64\nsetblock 20 -51 20 stone\ntp HapiKurban 20.5 -50 20.5\n")
+                    fifo.write("gamemode survival HapiKurban\nclear HapiKurban\ngive HapiKurban stone 64\nsetblock 20 -51 20 stone\ntp HapiKurban 20.5 -50 20.5\n")
                     fifo.flush()
                 if t > 40:
                     k = t - 40

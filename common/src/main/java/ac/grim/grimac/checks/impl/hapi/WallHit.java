@@ -51,6 +51,14 @@ public final class WallHit extends Check {
     /** @param hit isinin hedef kutusuna (belirsizlik payiyla genisletilmis) girdigi nokta */
     public void onRay(Vector3d eye, Vector3d hit) {
         if (skip || anyClear) return;
+        try {
+            trace(eye, hit);
+        } catch (RuntimeException e) { // bu denetimdeki bir hata Reach'i (ve paket yolunu) bozmamali
+            skip = true;
+        }
+    }
+
+    private void trace(Vector3d eye, Vector3d hit) {
         anyRay = true;
 
         final double shrink = player.getMovementThreshold() + 0.005;

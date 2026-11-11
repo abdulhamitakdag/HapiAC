@@ -106,6 +106,7 @@ public final class GrimAPI {
     public void stop() {
         checkInitialized();
         initManager.stop();
+        ac.grim.grimac.hapi.HapiFlagLog.flush(); // HapiAC: kuyrukta kalan son satirlar
     }
 
     public PlatformScheduler getScheduler() {
