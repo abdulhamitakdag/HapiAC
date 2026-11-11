@@ -2,7 +2,7 @@
 """HapiAC test istemcisi: cevrimdisi 1.21.8 (protokol 772) test sunucusuna iki ham-protokol botu sokar.
 Kurban yerinde durur; saldirgan senaryoya gore hile benzeri vurus desenleri uretir.
 Yalnizca yerel test sunucusu (127.0.0.1:25599) icindir."""
-import math, random, socket, struct, sys, threading, time, zlib
+import math, os, random, socket, struct, sys, threading, time, zlib
 
 HOST, PORT, PROTO = "127.0.0.1", 25599, 772
 
@@ -68,6 +68,12 @@ class Bot:
         self.lock = threading.Lock()
         self.alive = True
         self.kick = None
+        self.eid = None  # kendi varlik kimligi (diger botun gozunden ogrenilir)
+        self.kb = None  # sunucudan gelen, henuz uygulanmamis savrulma (blok/tick)
+        self.vel = [0.0, 0.0, 0.0]
+        self.ground = True
+        self.gy = 0.0  # uzerinde durulan zemin yuksekligi
+        self.resync = False
 
     # --- cerceveleme ---
     def send(self, pid, payload=b""):
@@ -164,6 +170,9 @@ class Bot:
             self.z = z + (self.z if flags & 4 else 0)
             self.yaw = yaw + (self.yaw if flags & 8 else 0)
             self.pitch = pitch + (self.pitch if flags & 16 else 0)
+            self.vel = [0.0, 0.0, 0.0]
+            self.ground, self.gy = True, self.y
+            self.resync = True  # isinlanmadan sonraki tick yere basildigi bildirilir (vanilla da boyle yapar)
             self.send(0x00, varint(tid))
             self.send(0x1E, struct.pack(">dddffB", self.x, self.y, self.z, self.yaw, self.pitch, 1))
             if not self.ready:
@@ -193,6 +202,12 @@ class Bot:
         elif pid == 0x1C:
             self.kick = "play: " + repr(buf.d[buf.i:][:300])
             self.alive = False
+        elif self.eid is not None and len(buf.d) - buf.i == len(varint(self.eid)) + 6 and buf.d[buf.i:].startswith(varint(self.eid)):
+            # kendi varligimiz icin hiz (savrulma) paketi: kimlik + 3 short (1/8000 blok/tick)
+            buf.varint()
+            self.kb = [v / 8000.0 for v in buf.unpack("hhh")]
+            if os.environ.get("HAPI_DEBUG"):
+                print("savrulma paketi %02X %s" % (pid, [round(v, 3) for v in self.kb]), flush=True)
 
     # --- oyun ---
     def rotate(self, dyaw, dpitch=0.0):
@@ -230,6 +245,34 @@ class Bot:
         pos = ((x & 0x3FFFFFF) << 38) | ((z & 0x3FFFFFF) << 12) | (y & 0xFFF)
         self.send(0x3F, varint(0) + struct.pack(">Q", pos) + varint(1) + struct.pack(">fff", 0.5, 1.0, 0.5) + b"\x00\x00" + varint(1))
 
+    def input(self, flags):  # tus durumu: 1 ileri, 2 geri, 4 sol, 8 sag, 16 ziplama, 32 egilme, 64 kosma
+        self.send(0x2A, bytes([flags]))
+
+    def sprint(self, on):
+        self.send(0x29, varint(self.eid) + varint(1 if on else 2) + varint(0))
+
+    def physics(self):  # duz zeminde vanilla hareket adimi (carpisma yok) + konum paketi
+        v = self.vel
+        for i in range(3):
+            if abs(v[i]) < 0.003:
+                v[i] = 0.0
+        was_ground = self.ground
+        self.x += v[0]
+        self.z += v[2]
+        ny = self.y + v[1]
+        if ny <= self.gy:
+            ny, self.ground, v[1] = self.gy, True, 0.0
+        else:
+            self.ground = False
+        self.y = ny
+        f = 0.546 if was_ground else 0.91
+        v[0] *= f
+        v[2] *= f
+        v[1] = (v[1] - 0.08) * 0.98
+        if v[0] or v[2] or self.resync or not (was_ground and self.ground):  # duran istemci konum paketi yollamaz
+            self.resync = False
+            self.send(0x1D, struct.pack(">dddB", self.x, self.y, self.z, 1 if self.ground else 0))
+
     def flush_pongs(self):  # sirayi bozmadan, vadesi gelen yanitlari gonder
         with self.plock:
             now = time.time()
@@ -265,11 +308,12 @@ def run(scenario, seconds):
     if not (victim.ready and attacker.ready):
         return 1
 
-    import os
     fifo = open(os.environ["HAPI_FIFO"], "w") if os.environ.get("HAPI_FIFO") else None
     target = None
     base = None
     nxt = [12]
+    tap = [None, None]  # w-tap: [birakma ticki, yeniden basma ticki]
+    jumped = False
     tick = 0
     start = time.time()
     next_tick = start
@@ -278,6 +322,8 @@ def run(scenario, seconds):
             target = attacker.entities.get(offline_uuid("HapiKurban"))
             if target is not None:
                 print("hedef entity id:", target, flush=True)
+                victim.eid = target
+                attacker.eid = victim.entities.get(offline_uuid(attacker.name))
         if target is not None and tick > 60:
             t = tick - 60
             if scenario == "ritim":  # her 8 tickte bir vurus, hic iskalamadan, nisan hareketli
@@ -385,6 +431,48 @@ def run(scenario, seconds):
                     if t >= nxt[0]:
                         attacker.attack(target)
                         nxt[0] = t + random.choice([10, 11, 12, 13, 14, 15, 17, 20])
+            elif scenario in ("wtap", "wtapinsan"):  # kosarak vurus + ileri tusunu birak/bas; wtap=hep ayni tick, wtapinsan=oynak
+                if t == 1 and attacker.eid is not None:
+                    attacker.sprint(True)
+                    attacker.input(0x41)
+                if t >= nxt[0]:
+                    attacker.attack(target)
+                    nxt[0] = t + random.choice([10, 11, 12, 13, 14, 15, 17, 20])
+                    rel = t if scenario == "wtap" else t + random.choice([0, 1, 1, 2])
+                    tap = [rel, rel + (2 if scenario == "wtap" else random.choice([1, 2, 2, 3, 4]))]
+                if t == tap[0]:
+                    attacker.input(0x40)
+                if t == tap[1]:
+                    attacker.input(0x41)
+            elif scenario in ("ziplama", "ziplamainsan", "ziplamayok"):  # kurban savrulur; ziplama=her seferinde ayni tickte ziplar
+                cyc = t % 40
+                if fifo is not None and cyc == 1:
+                    if t == 1:
+                        base = (victim.x, victim.y, victim.z)
+                        fx, fy, fz = math.floor(base[0]), int(base[1]), math.floor(base[2])
+                        fifo.write("gamemode survival HapiKurban\ndifficulty peaceful\n")
+                        fifo.write("fill %d %d %d %d %d %d stone\n" % (fx - 4, fy - 1, fz - 6, fx + 4, fy - 1, fz + 12))
+                        fifo.write("fill %d %d %d %d %d %d air\n" % (fx - 4, fy, fz - 6, fx + 4, fy + 4, fz + 12))
+                    fifo.write("tp HapiKurban %.3f %.1f %.3f\n" % base)
+                    fifo.write("tp %s %.3f %.1f %.3f\n" % (attacker.name, base[0], base[1], base[2] - 2.5))
+                    fifo.flush()
+                if cyc == 20:
+                    attacker.rotate(0.0, -attacker.pitch)
+                    attacker.look_at((victim.x, victim.y, victim.z))  # /tp sonrasi varlik konumu izlenmiyor; kurbanin kendi konumu
+                    attacker.attack(target)
+                    if os.environ.get("HAPI_DEBUG"):
+                        print("vurus t=%d saldirgan=(%.2f %.2f %.2f yaw=%.1f pitch=%.1f) kurban=(%.2f %.2f %.2f) gorulen=%s" % (t, attacker.x, attacker.y, attacker.z, attacker.yaw, attacker.pitch, victim.x, victim.y, victim.z, attacker.epos.get(target)), flush=True)
+                kb, victim.kb = victim.kb, None
+                if jumped:
+                    victim.input(0x00)
+                    jumped = False
+                if kb is not None and victim.ground:
+                    victim.vel = kb
+                    if scenario == "ziplama" or (scenario == "ziplamainsan" and random.random() < 0.5):
+                        victim.vel[1] = max(0.42, victim.vel[1])
+                        victim.input(0x10)
+                        jumped = True
+                victim.physics()
             elif scenario == "spam":  # tick basina 2 vurus
                 attacker.attack(target)
                 attacker.attack(target)

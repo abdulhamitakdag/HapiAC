@@ -31,6 +31,20 @@ hapi:
     target-switch:
       # En çok 2 tick arayla vurulan iki oyuncu arasındaki en küçük açı (derece); 10 sn içinde 3 tekrar flag
       min-angle: 50
+    sprint-reset:
+      # W-tap / S-tap makrosu: sprint reset yapılan son "sample-size" vuruşun en az "min-identical"
+      # tanesinde ileri tuşu birebir aynı tickte bırakılıp aynı süre sonra basıldıysa flag
+      sample-size: 10
+      min-identical: 9
+
+  velocity:
+    jump-reset:
+      # Otomatik jump reset: yerde bekleyen (en az "min-ground-ticks") ve zıplama tuşuna basmayan
+      # oyuncunun aldığı son "sample-size" savrulmada, tam savrulma tickinde zıplama oranı
+      # "min-ratio" değerine ulaşırsa flag. Elle yapan oyuncu bu orana çıkamaz.
+      sample-size: 20
+      min-ratio: 0.85
+      min-ground-ticks: 3
 
   net:
     combat-lag:
@@ -90,6 +104,12 @@ hapi:
       enabled: true
       dont-alert-until: 2
     CombatLag:
+      enabled: true
+      dont-alert-until: 1
+    SprintReset:
+      enabled: true
+      dont-alert-until: 1
+    JumpReset:
       enabled: true
       dont-alert-until: 1
     # Bağlantı takılması sonrası toparlanma bu üç check'te saniyede onlarca alarm üretir

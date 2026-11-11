@@ -38,6 +38,7 @@ public final class CombatTracker extends GrimProcessor implements PacketReceiveL
     private TargetSwitch targetSwitch;
     private InventoryHit inventoryHit;
     private CombatLag combatLag;
+    private SprintReset sprintReset;
 
     private int windowTicks; // onReload atar (super() icinde)
     private boolean moduleEnabled;
@@ -84,6 +85,7 @@ public final class CombatTracker extends GrimProcessor implements PacketReceiveL
         targetSwitch = player.checkManager.get(TargetSwitch.class);
         inventoryHit = player.checkManager.get(InventoryHit.class);
         combatLag = player.checkManager.get(CombatLag.class);
+        sprintReset = player.checkManager.get(SprintReset.class);
     }
 
     @Override
@@ -168,6 +170,7 @@ public final class CombatTracker extends GrimProcessor implements PacketReceiveL
                 lastPlayerAttackTick = tick;
             }
             combatLag.onTick(tick - lastPlayerAttackTick <= windowTicks);
+            sprintReset.onTick(tick, attackedPlayerThisTick);
 
             if (tainted > 0) {
                 tainted--;
