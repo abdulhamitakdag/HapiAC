@@ -1,7 +1,10 @@
 # HapiAC ayarları. Değişiklikten sonra: /grim reload  (restart gerekmez)
 hapi:
   # Her flag'i plugins/GrimAC/hapi/flags-YYYY-AA-GG.log dosyasına yaz (alarm eşiğinin altındakiler dahil).
-  # Sayaçlar için: /grim top [check|oyuncu|dunya|sifirla] [adet]
+  # Sütunlar: saat, oyuncu, check, ihlal, dünya, ping, istemci sürümü, istemci markası, ayrıntı
+  # Oyuncuyu gerçekten geri çeken her işlem de aynı dosyaya "SETBACK" satırı olarak yazılır
+  # (ihlal sütunu = son 10 sn içindeki kaçıncı geri çekme; ayrıntıda neden, mesafe, konum, binek).
+  # Sayaçlar için: /grim top [check|oyuncu|dunya|geri|sifirla] [adet]   (geri = nedene göre geri çekmeler)
   flag-log: true
 
   # ---------------------------------------------------------------------------
@@ -62,6 +65,7 @@ hapi:
   #   enabled: false              -> check hiç flag üretmez
   #   dont-alert-until: 3         -> 3. ihlale kadar yetkiliye alarm gitmez (flag yine loglanır)
   #   exempt-worlds: [dunya_adi]  -> bu dünyalarda flag üretmez
+  #   setback: false              -> check flag üretir ve loglanır ama oyuncuyu geri çekmez
   #   punish-vl: 20               -> ihlal sayısı buna ulaşınca punish-command çalışır
   #   punish-command: "kick %player% Hile şüphesi (%check_name%)"
   #   punish-cooldown-seconds: 60 -> aynı oyuncuya komutun tekrar çalışması için bekleme

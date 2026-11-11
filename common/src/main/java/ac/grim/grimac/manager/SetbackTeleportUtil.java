@@ -70,6 +70,9 @@ public class SetbackTeleportUtil extends GrimProcessor implements PostPrediction
     @Getter
     private SetBackData requiredSetBack = null;
     private long lastWorldResync = 0;
+    // HapiAC: geri cekme logu icin
+    private long hapiLastSetback;
+    private int hapiStreak;
 
     public SetbackTeleportUtil(GrimPlayer player) {
         super(player);
@@ -229,8 +232,57 @@ public class SetbackTeleportUtil extends GrimProcessor implements PostPrediction
             blockOffsets = true;
         }
 
+        hapiLogSetback(position, isResync);
+
         SetBackData data = new SetBackData(new TeleportData(position, 0, 0, null, RelativeFlag.YAW.or(RelativeFlag.PITCH), player.lastTransactionSent.get(), 0), player.yaw, player.pitch, clientVel, player.inVehicle(), false);
         sendSetback(data);
+    }
+
+    private static final StackWalker HAPI_WALKER = StackWalker.getInstance();
+
+    /**
+     * HapiAC: gercekten gonderilen her geri cekmeyi nedeniyle birlikte flag loguna yazar.
+     * Yalnizca geri cekme aninda calisir (bekleyen geri cekme varken tekrarlanmaz), tick basina yuk yok.
+     */
+    private void hapiLogSetback(Vector3d position, boolean isResync) {
+        final long now = System.currentTimeMillis();
+        final long gap = hapiLastSetback == 0 ? -1 : now - hapiLastSetback;
+        hapiStreak = gap >= 0 && gap < 10_000 ? hapiStreak + 1 : 1;
+        hapiLastSetback = now;
+
+        // [0] bu metot, [1] blockMovementsUntilResync, [2] execute*, [3] cagiran
+        final String where = HAPI_WALKER.walk(frames -> frames.skip(3).findFirst()
+                .map(f -> {
+                    final String cls = f.getClassName();
+                    return cls.substring(cls.lastIndexOf('.') + 1) + ":" + f.getLineNumber();
+                }).orElse("?"));
+
+        final ac.grim.grimac.checks.Check last = player.hapiLastFlagged;
+        final String cause;
+        if (isResync) {
+            cause = "Resync";
+        } else if (last != null && now - last.getLastViolationTime() < 250) {
+            cause = last.getCheckName();
+        } else {
+            cause = where;
+        }
+
+        final double dx = player.x - position.getX(), dy = player.y - position.getY(), dz = player.z - position.getZ();
+        final StringBuilder sb = new StringBuilder(128);
+        sb.append("neden=").append(cause)
+                .append(" yer=").append(where)
+                .append(" mesafe=").append(Math.round(Math.sqrt(dx * dx + dy * dy + dz * dz) * 100) / 100.0)
+                .append(" ara=").append(gap).append("ms")
+                .append(" konum=").append(GrimMath.floor(position.getX())).append(',')
+                .append(GrimMath.floor(position.getY())).append(',').append(GrimMath.floor(position.getZ()));
+        if (player.inVehicle()) sb.append(" binek=").append(player.getVehicleType().getName().getKey());
+        if (player.isFlying) sb.append(" ucus");
+        if (player.isGliding) sb.append(" elytra");
+        if (player.wasTouchingWater) sb.append(" su");
+        // Sayac anahtari "neden@cagiran sinif": ayni check farkli yollardan geri cekebilir
+        // (or. Simulation@OffsetHandler = ilk geri cekme, Simulation@KnockbackHandler = geri cekme hizinin tekrari)
+        final String key = cause.equals(where) ? where : cause + "@" + where.substring(0, where.indexOf(':'));
+        ac.grim.grimac.hapi.HapiFlagLog.recordSetback(player, key, hapiStreak, sb.toString());
     }
 
     private boolean isOnGround(Vector3d position) {

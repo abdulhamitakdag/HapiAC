@@ -274,6 +274,8 @@ public class GrimPlayer implements GrimUser {
     // end config
     public boolean noModifyPacketPermission;
     public boolean noSetbackPermission;
+    // HapiAC: en son flag ureten check (geri cekme logunda neden olarak yazilir)
+    public ac.grim.grimac.checks.Check hapiLastFlagged;
     // This variable is for support with test servers that want to be able to disable grim
     // Grim disabler 2022 still working!
     public boolean disableGrim;

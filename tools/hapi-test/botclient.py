@@ -473,6 +473,8 @@ def run(scenario, seconds):
                         victim.input(0x10)
                         jumped = True
                 victim.physics()
+            elif scenario == "kacak":  # hiz hilesi: kurban tick basina 0.9 blok kayar -> Simulation geri cekmesi (SETBACK logu testi)
+                victim.move(victim.x + 0.9, victim.z)
             elif scenario == "spam":  # tick basina 2 vurus
                 attacker.attack(target)
                 attacker.attack(target)

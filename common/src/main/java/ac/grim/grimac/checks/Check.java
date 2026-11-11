@@ -55,6 +55,7 @@ public class Check extends GrimProcessor implements AbstractCheck {
 
     // HapiAC: hapi.yml -> hapi.checks.<configName>.* (reload aninda alanlara cozulur, sicak yolda harita aramasi yok)
     private boolean hapiEnabled = true;
+    private boolean hapiSetback = true;
     private double hapiAlertFrom;
     private String @Nullable [] hapiExemptWorlds;
     private double hapiPunishVl;
@@ -150,6 +151,7 @@ public class Check extends GrimProcessor implements AbstractCheck {
         lastFlagStoredBinaryVerbose = false;
         player.punishmentManager.handleViolation(this);
         lastViolationTime = System.currentTimeMillis();
+        player.hapiLastFlagged = this;
         HapiFlagLog.record(player, this, verbose.get());
         violations++;
         hapiPunish();
@@ -168,6 +170,7 @@ public class Check extends GrimProcessor implements AbstractCheck {
         lastFlagStoredBinaryVerbose = true;
         player.punishmentManager.handleViolation(this);
         lastViolationTime = System.currentTimeMillis();
+        player.hapiLastFlagged = this;
         HapiFlagLog.record(player, this, rendered.get());
         violations++;
         hapiPunish();
@@ -272,6 +275,7 @@ public class Check extends GrimProcessor implements AbstractCheck {
 
         final String hapi = "hapi.checks." + getConfigName() + ".";
         hapiEnabled = configuration.getBooleanElse(hapi + "enabled", true);
+        hapiSetback = configuration.getBooleanElse(hapi + "setback", true);
         hapiAlertFrom = configuration.getDoubleElse(hapi + "dont-alert-until", defaultAlertFrom());
         final List<String> worlds = configuration.getStringListElse(hapi + "exempt-worlds", List.of());
         hapiExemptWorlds = worlds == null || worlds.isEmpty() ? null : worlds.toArray(new String[0]);
@@ -317,11 +321,16 @@ public class Check extends GrimProcessor implements AbstractCheck {
     }
 
     public boolean shouldSetback() {
-        return !noSetbackPermission && violations > setbackVL;
+        return !isNoSetbackPermission() && violations > setbackVL;
     }
 
     public boolean executeViolationSetback() {
-        return !noSetbackPermission && player.getSetbackTeleportUtil().executeViolationSetback();
+        return !isNoSetbackPermission() && player.getSetbackTeleportUtil().executeViolationSetback();
+    }
+
+    /** HapiAC: hapi.checks.<ad>.setback: false ise check flag uretir ama oyuncuyu geri cekmez. */
+    public boolean isNoSetbackPermission() {
+        return noSetbackPermission || !hapiSetback;
     }
 
     public String formatOffset(double offset) {

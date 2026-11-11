@@ -31,7 +31,7 @@ import java.util.concurrent.atomic.LongAdder;
  * arka plan thread'inde 2 saniyede bir toplu yapilir.
  */
 public final class HapiFlagLog {
-    public enum Kind {CHECK, PLAYER, WORLD}
+    public enum Kind {CHECK, PLAYER, WORLD, SETBACK}
 
     private static final int MAX_QUEUE = 20_000;
     private static final DateTimeFormatter TIME = DateTimeFormatter.ofPattern("HH:mm:ss.SSS");
@@ -39,6 +39,7 @@ public final class HapiFlagLog {
     private static final Map<String, LongAdder> BY_CHECK = new ConcurrentHashMap<>();
     private static final Map<String, LongAdder> BY_PLAYER = new ConcurrentHashMap<>();
     private static final Map<String, LongAdder> BY_WORLD = new ConcurrentHashMap<>();
+    private static final Map<String, LongAdder> BY_SETBACK = new ConcurrentHashMap<>();
     private static final ConcurrentLinkedQueue<String> QUEUE = new ConcurrentLinkedQueue<>();
     private static final AtomicInteger QUEUED = new AtomicInteger();
     private static final LongAdder DROPPED = new LongAdder();
@@ -67,23 +68,52 @@ public final class HapiFlagLog {
         BY_PLAYER.computeIfAbsent(name, k -> new LongAdder()).increment();
         BY_WORLD.computeIfAbsent(world, k -> new LongAdder()).increment();
 
+        write(player, name, world, check.getCheckName(), (int) check.getViolations() + 1, verbose);
+    }
+
+    /**
+     * Gercekten gonderilen bir geri cekme (setback). Ayni dosyaya check sutunu "SETBACK", vl sutunu
+     * "son 10 sn icindeki kacinci geri cekme" olacak sekilde yazilir; boylece oncesindeki flag'lerle
+     * ayni zaman cizgisinde okunur.
+     */
+    public static void recordSetback(GrimPlayer player, String cause, int streak, String detail) {
+        String name = player.getName();
+        if (name == null) name = "?";
+        String world = player.getWorldName();
+        if (world == null) world = "?";
+
+        BY_SETBACK.computeIfAbsent(cause, k -> new LongAdder()).increment();
+        write(player, name, world, "SETBACK", streak, detail);
+    }
+
+    private static void write(GrimPlayer player, String name, String world, String check, int vl, String detail) {
         if (!fileEnabled) return;
         if (QUEUED.get() >= MAX_QUEUE) {
             DROPPED.increment();
             return;
         }
 
-        StringBuilder sb = new StringBuilder(96);
+        String brand = player.getBrand();
+        if (brand == null) brand = "?";
+        if (brand.length() > 32) brand = brand.substring(0, 32);
+
+        StringBuilder sb = new StringBuilder(128);
         sb.append(LocalTime.now().format(TIME)).append('\t')
                 .append(name).append('\t')
-                .append(check.getCheckName()).append('\t')
-                .append((int) check.getViolations() + 1).append('\t')
+                .append(check).append('\t')
+                .append(vl).append('\t')
                 .append(world).append('\t')
                 .append(player.getTransactionPing()).append('\t')
-                .append(verbose == null ? "" : verbose.replace('\t', ' ').replace('\n', ' '));
+                .append(player.getClientVersion().getReleaseName()).append('\t')
+                .append(clean(brand)).append('\t')
+                .append(detail == null ? "" : clean(detail));
         QUEUE.add(sb.toString());
         QUEUED.incrementAndGet();
         ensureWriter();
+    }
+
+    private static String clean(String text) {
+        return text.replace('\t', ' ').replace('\n', ' ');
     }
 
     private static void ensureWriter() {
@@ -130,6 +160,7 @@ public final class HapiFlagLog {
             case CHECK -> BY_CHECK;
             case PLAYER -> BY_PLAYER;
             case WORLD -> BY_WORLD;
+            case SETBACK -> BY_SETBACK;
         };
         List<Map.Entry<String, Long>> list = new ArrayList<>(source.size());
         for (Map.Entry<String, LongAdder> e : source.entrySet()) {
@@ -139,9 +170,9 @@ public final class HapiFlagLog {
         return list.size() > limit ? list.subList(0, limit) : list;
     }
 
-    public static long total() {
+    public static long total(Kind kind) {
         long sum = 0;
-        for (LongAdder adder : BY_CHECK.values()) sum += adder.sum();
+        for (LongAdder adder : (kind == Kind.SETBACK ? BY_SETBACK : BY_CHECK).values()) sum += adder.sum();
         return sum;
     }
 
@@ -149,6 +180,7 @@ public final class HapiFlagLog {
         BY_CHECK.clear();
         BY_PLAYER.clear();
         BY_WORLD.clear();
+        BY_SETBACK.clear();
         since = System.currentTimeMillis();
     }
 }
