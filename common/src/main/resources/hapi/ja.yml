@@ -95,6 +95,17 @@ hapi:
       sample-size: 12
       max-ticks: 1
 
+  # ---------------------------------------------------------------------------
+  # İstemci bilgisi. Oyuncu girdikten birkaç saniye sonra bildirdiği mod kanalları
+  # flag loguna "CLIENT" satırı olarak yazılır (sürüm ve marka sütunlarıyla birlikte).
+  # Hile istemcileri kendini gizleyebilir; burada yalnız kendini bildiren modlar görünür.
+  # ---------------------------------------------------------------------------
+  client:
+    log: true
+    # İstemci markası ya da kanal adı bu parçalardan birini içeriyorsa "ClientMod" alarmı verilir.
+    # Örnek: ["xaerominimap", "xaeroworldmap", "litematica", "servux", "axiom"]
+    alert-patterns: []
+
   velocity:
     jump-reset:
       # Otomatik jump reset: yerde bekleyen (en az "min-ground-ticks") ve zıplama tuşuna basmayan
@@ -190,6 +201,9 @@ hapi:
       enabled: true
       dont-alert-until: 2
     SilentSwap:
+      enabled: true
+      dont-alert-until: 1
+    ClientMod:
       enabled: true
       dont-alert-until: 1
     CrystalSpeed:

@@ -9,6 +9,7 @@ Dizin verilirse icindeki flags-*.log dosyalarinin hepsi okunur. "ad=" on eki o k
 
 Log sutunlari (TSV): saat, oyuncu, check, ihlal, dunya, ping, surum, marka, ayrinti
 Geri cekmeler "SETBACK" check adiyla gelir; ayrintida neden=, yer=, mesafe=, konum= bulunur.
+Girisler "CLIENT" adiyla gelir; ayrintida istemcinin bildirdigi mod kanallari bulunur.
 """
 import glob
 import os
@@ -18,7 +19,7 @@ from collections import Counter, defaultdict
 
 HAPI = {"AimSnap", "AimLinear", "AimGrid", "AimTrack", "AimAxis", "AttackRhythm", "ClickRate", "HitAccuracy", "WallHit",
         "TargetSwitch", "InventoryHit", "CombatLag", "JumpReset", "SprintReset", "ScaffoldSnap", "FastPlace", "BridgePerfect",
-        "AutoTotem", "InventoryBurst", "InventoryRhythm", "SilentSwap", "CrystalSpeed", "AttackPredict"}
+        "ClientMod", "AutoTotem", "InventoryBurst", "InventoryRhythm", "SilentSwap", "CrystalSpeed", "AttackPredict"}
 
 
 def oku(kaynaklar, gun):
@@ -81,7 +82,8 @@ def main():
         return 2
 
     kayit = [k for k in oku(kaynaklar, gun) if not oyuncu_sec or k["oyuncu"] == oyuncu_sec]
-    flag = [k for k in kayit if k["check"] != "SETBACK"]
+    flag = [k for k in kayit if k["check"] not in ("SETBACK", "CLIENT")]
+    istemci = [k for k in kayit if k["check"] == "CLIENT"]
     geri = [k for k in kayit if k["check"] == "SETBACK"]
     gunler = sorted({k["tarih"] for k in kayit})
     print("# HapiAC flag raporu")
@@ -159,6 +161,20 @@ def main():
         v[1].add(k["oyuncu"])
     tablo("Istemci surumu / markasi", [[a, v[0], len(v[1]), "%.0f" % (v[0] / len(v[1]))] for a, v in sorted(sm.items(), key=lambda kv: -kv[1][0])[:adet]],
           ["surum / marka", "flag", "oyuncu", "flag/oyuncu"])
+
+    # mod kanallari (ad alani = ':' oncesi)
+    if istemci:
+        alan = defaultdict(set)
+        for k in istemci:
+            for ad in {c.split(":", 1)[0] for c in k["ayrinti"].split()} or {"(kanal yok)"}:
+                alan[ad].add(k["oyuncu"])
+        toplam = len({k["oyuncu"] for k in istemci})
+        tablo("Mod kanallari (giris yapan %d oyuncu)" % toplam, [[a, len(o), ", ".join(sorted(o)[:4])] for a, o in sorted(alan.items(), key=lambda kv: -len(kv[1]))[:adet * 2]],
+              ["ad alani", "oyuncu", "ornek"])
+        ms = defaultdict(set)
+        for k in istemci:
+            ms[k["surum"] + " / " + k["marka"]].add(k["oyuncu"])
+        tablo("Giris yapanlarin surumu / markasi", [[a, len(o)] for a, o in sorted(ms.items(), key=lambda kv: -len(kv[1]))[:adet]], ["surum / marka", "oyuncu"])
 
     # saatlik
     saat = Counter(k["saat"][:2] for k in flag)

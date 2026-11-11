@@ -133,6 +133,7 @@ public class CheckManager implements BasicReloadable {
                 .put(AttackCooldownHandler.class, player.attackCooldown)
                 .put(TeamHandler.class, new TeamHandler(player))
                 .put(ClientBrand.class, new ClientBrand(player))
+                .put(ac.grim.grimac.checks.impl.hapi.ClientMod.class, new ac.grim.grimac.checks.impl.hapi.ClientMod(player)) // HapiAC
                 .put(NoFall.class, new NoFall(player))
                 .put(ExploitA.class, new ExploitA(player))
                 .put(ExploitB.class, new ExploitB(player))

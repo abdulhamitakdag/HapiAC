@@ -112,6 +112,17 @@ public final class HapiFlagLog {
         write(player, name, world, "SETBACK", streak, detail);
     }
 
+    /** Oyuncunun girisinde bildirdigi mod kanallari; check sutunu "CLIENT" olan satir. */
+    public static void recordClient(GrimPlayer player, String channels) {
+        try {
+            String name = player.getName();
+            String world = player.getWorldName();
+            write(player, name == null ? "?" : name, world == null ? "?" : world, "CLIENT", 0, channels);
+        } catch (RuntimeException e) {
+            DROPPED.increment();
+        }
+    }
+
     private static void write(GrimPlayer player, String name, String world, String check, int vl, String detail) {
         if (!fileEnabled) return;
         if (QUEUED.get() >= MAX_QUEUE) {

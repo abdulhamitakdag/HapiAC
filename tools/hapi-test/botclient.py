@@ -631,6 +631,9 @@ def run(scenario, seconds):
                                 if t - seen >= (0 if scenario == "kristal" else 5):
                                     attacker.attack(e)
                                     base.add(e)
+            elif scenario == "mod":  # saldirgan harita modu kanali bildirir (hapi.client.alert-patterns: ["xaero"] ile ClientMod)
+                if t == 1:
+                    attacker.send(0x15, mcstr("minecraft:register") + b"xaerominimap:main\x00fabric:registry/sync\x00worldedit:cui")
             elif scenario == "spam":  # tick basina 2 vurus
                 attacker.attack(target)
                 attacker.attack(target)
