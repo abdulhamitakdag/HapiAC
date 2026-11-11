@@ -275,6 +275,11 @@ public class CheckManager implements BasicReloadable {
                 .put(ac.grim.grimac.checks.impl.hapi.SprintReset.class, new ac.grim.grimac.checks.impl.hapi.SprintReset(player))
                 .put(ac.grim.grimac.checks.impl.hapi.JumpReset.class, new ac.grim.grimac.checks.impl.hapi.JumpReset(player)) // tahmin sonrasi dinleyici
                 .put(CombatTracker.class, new CombatTracker(player))
+                // HapiAC yapi modulu: uc check'i BuildTracker cagirir
+                .put(ac.grim.grimac.checks.impl.hapi.ScaffoldSnap.class, new ac.grim.grimac.checks.impl.hapi.ScaffoldSnap(player))
+                .put(ac.grim.grimac.checks.impl.hapi.FastPlace.class, new ac.grim.grimac.checks.impl.hapi.FastPlace(player))
+                .put(ac.grim.grimac.checks.impl.hapi.BridgePerfect.class, new ac.grim.grimac.checks.impl.hapi.BridgePerfect(player))
+                .put(ac.grim.grimac.checks.impl.hapi.BuildTracker.class, new ac.grim.grimac.checks.impl.hapi.BuildTracker(player))
                 .build();
 
         ArrayList<AbstractCheck> checks = new ArrayList<>();

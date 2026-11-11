@@ -245,6 +245,12 @@ class Bot:
         pos = ((x & 0x3FFFFFF) << 38) | ((z & 0x3FFFFFF) << 12) | (y & 0xFFF)
         self.send(0x3F, varint(0) + struct.pack(">Q", pos) + varint(1) + struct.pack(">fff", 0.5, 1.0, 0.5) + b"\x00\x00" + varint(1))
 
+    def place(self, x, y, z, face, cx=0.5, cy=0.5, cz=0.5):  # elde blokla bloga sag tik; face: 0 alt, 1 ust, 2 kuzey, 3 guney, 4 bati, 5 dogu
+        pos = ((x & 0x3FFFFFF) << 38) | ((z & 0x3FFFFFF) << 12) | (y & 0xFFF)
+        self.seq = getattr(self, "seq", 1) + 1
+        self.send(0x3F, varint(0) + struct.pack(">Q", pos) + varint(face) + struct.pack(">fff", cx, cy, cz) + b"\x00\x00" + varint(self.seq))
+        self.send(0x3C, varint(0))
+
     def input(self, flags):  # tus durumu: 1 ileri, 2 geri, 4 sol, 8 sag, 16 ziplama, 32 egilme, 64 kosma
         self.send(0x2A, bytes([flags]))
 
@@ -309,6 +315,9 @@ def run(scenario, seconds):
         return 1
 
     fifo = open(os.environ["HAPI_FIFO"], "w") if os.environ.get("HAPI_FIFO") else None
+    if fifo is not None:  # onceki kosuda uzaklasan kurban saldirganin gorus alanina donsun (yoksa senaryo hic baslamaz)
+        fifo.write("tp HapiKurban HapiSaldir\n")
+        fifo.flush()
     target = None
     base = None
     nxt = [12]
@@ -475,6 +484,42 @@ def run(scenario, seconds):
                 victim.physics()
             elif scenario == "kacak":  # hiz hilesi: kurban tick basina 0.9 blok kayar -> Simulation geri cekmesi (SETBACK logu testi)
                 victim.move(victim.x + 0.9, victim.z)
+            elif scenario in ("kopru", "kopruegil", "koprutik", "snapkoy", "snaptut", "snapinsan", "hizlikoy", "hizliinsan"):
+                # Yapi modulu: insaatci kurbandir. Havadaki tek blogun ustune isinlanir, eline tas verilir.
+                if fifo is not None and t == 1:
+                    fifo.write("gamemode survival HapiKurban\ngive HapiKurban stone 64\nsetblock 20 -51 20 stone\ntp HapiKurban 20.5 -50 20.5\n")
+                    fifo.flush()
+                if t > 40:
+                    k = t - 40
+                    bx, by, bz = math.floor(victim.x), math.floor(victim.y - 1e-4), math.floor(victim.z)
+                    if scenario.startswith("kopru"):  # 5 tickte bir blok, doguya; kopru=kusursuz, kopruegil=her blokta egilme, koprutik=bosa tiklamalar
+                        if k % 5 == 0:
+                            victim.place(bx, by, bz, 5, 1.0, 0.5, 0.5)
+                        elif scenario == "koprutik" and k % 5 == 2 and random.random() < 0.5:
+                            victim.place(bx, by, bz, 1, 0.5, 1.0, 0.5)  # ust yuze bosa tiklama
+                        if scenario == "kopruegil":
+                            if k % 5 == 4:
+                                victim.input(32)
+                            elif k % 5 == 1:
+                                victim.input(0)
+                        victim.move(victim.x + 0.2, victim.z)
+                    elif scenario.startswith("snap"):  # 12 tickte bir: don + koy, sonra geri don
+                        hold = 4 if scenario == "snaptut" else 1
+                        if k % 12 == 0:
+                            victim.rotate(60.0, 30.0)
+                            victim.place(bx, by, bz, 1, 0.5, 1.0, 0.5)
+                        elif k % 12 == hold:
+                            if scenario == "snapinsan":  # insan: geri donus birkac derece sapar ve iki tike yayilir
+                                victim.rotate(-40.0 + random.uniform(-6, 6), -20.0 + random.uniform(-4, 4))
+                            else:
+                                victim.rotate(-60.0, -30.0)
+                        elif scenario == "snapinsan" and k % 12 == hold + 1:
+                            victim.rotate(-20.0 + random.uniform(-3, 3), -10.0 + random.uniform(-2, 2))
+                    elif scenario == "hizlikoy":  # her tick tam bir blok koyma paketi
+                        victim.place(bx, by, bz, 1, 0.5, 1.0, 0.5)
+                    else:  # hizliinsan: 14-16 tiklama/sn, tick basina 0-2 paket
+                        for _ in range(random.choice([0, 1, 1, 1, 2])):
+                            victim.place(bx, by, bz, 1, 0.5, 1.0, 0.5)
             elif scenario == "spam":  # tick basina 2 vurus
                 attacker.attack(target)
                 attacker.attack(target)

@@ -40,6 +40,26 @@ hapi:
       sample-size: 10
       min-identical: 9
 
+  # ---------------------------------------------------------------------------
+  # Yapı modülü (sezgisel). Grim blok koymanın vanilla kurallarına uyduğunu denetler
+  # ama scaffold sezgiseli içermez; bu üç check o boşluğu doldurur.
+  # ---------------------------------------------------------------------------
+  build:
+    enabled: true
+    scaffold-snap:
+      # Blok koyarken tek tickte en az bu kadar derece dönüp, en çok "max-hold-ticks" tick içinde
+      # eski bakışa geri dönme; 10 sn içinde 3 tekrar flag
+      min-angle: 25
+      max-hold-ticks: 8
+    fast-place:
+      # Üst üste bu kadar tick boyunca her tick tam bir blok koyma paketi (vanilla basılı tutma: 4 tickte bir)
+      consecutive-ticks: 20
+    bridge-perfect:
+      # Hiç eğilmeden ve hiç boşa tıklama olmadan ayak altına üst üste bu kadar blok ekleme
+      sample-size: 16
+      # İki blok arasında en çok bu kadar tick geçerse seri sürer
+      max-gap-ticks: 8
+
   velocity:
     jump-reset:
       # Otomatik jump reset: yerde bekleyen (en az "min-ground-ticks") ve zıplama tuşuna basmayan
@@ -116,6 +136,15 @@ hapi:
     JumpReset:
       enabled: true
       dont-alert-until: 1
+    ScaffoldSnap:
+      enabled: true
+      dont-alert-until: 1
+    FastPlace:
+      enabled: true
+      dont-alert-until: 1
+    BridgePerfect:
+      enabled: true
+      dont-alert-until: 2
     # Bağlantı takılması sonrası toparlanma bu üç check'te saniyede onlarca alarm üretir
     TimerA:
       alert-cooldown-seconds: 5
