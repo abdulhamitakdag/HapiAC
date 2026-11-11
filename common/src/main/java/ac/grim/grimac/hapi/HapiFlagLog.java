@@ -45,6 +45,10 @@ public final class HapiFlagLog {
     private static final LongAdder DROPPED = new LongAdder();
 
     private static volatile boolean fileEnabled = true;
+    private static volatile long maxFileBytes = 256L << 20;
+    private static volatile int keepDays = 14;
+    private static LocalDate lastCleanup; // yalniz flush() icinde (synchronized)
+    private static LocalDate cappedDay;
     private static volatile ScheduledExecutorService writer;
     private static volatile long since = System.currentTimeMillis();
 
@@ -54,11 +58,25 @@ public final class HapiFlagLog {
         fileEnabled = enabled;
     }
 
+    /** Gunluk dosya boyutu siniri (MB; 0 = sinirsiz) ve eski dosyalarin saklanma suresi (gun; 0 = silme). */
+    public static void setLimits(int maxMegabytes, int days) {
+        maxFileBytes = maxMegabytes <= 0 ? Long.MAX_VALUE : (long) maxMegabytes << 20;
+        keepDays = days;
+    }
+
     public static long since() {
         return since;
     }
 
     public static void record(GrimPlayer player, Check check, String verbose) {
+        try {
+            record0(player, check, verbose);
+        } catch (RuntimeException e) { // kayit hatasi check'i (ve paket yolunu) asla bozmamali
+            DROPPED.increment();
+        }
+    }
+
+    private static void record0(GrimPlayer player, Check check, String verbose) {
         String name = player.getName();
         if (name == null) name = "?";
         String world = player.getWorldName();
@@ -77,6 +95,14 @@ public final class HapiFlagLog {
      * ayni zaman cizgisinde okunur.
      */
     public static void recordSetback(GrimPlayer player, String cause, int streak, String detail) {
+        try {
+            recordSetback0(player, cause, streak, detail);
+        } catch (RuntimeException e) {
+            DROPPED.increment();
+        }
+    }
+
+    private static void recordSetback0(GrimPlayer player, String cause, int streak, String detail) {
         String name = player.getName();
         if (name == null) name = "?";
         String world = player.getWorldName();
@@ -136,7 +162,27 @@ public final class HapiFlagLog {
         try {
             File dir = new File(GrimAPI.INSTANCE.getGrimPlugin().getDataFolder(), "hapi");
             if (!dir.isDirectory() && !dir.mkdirs()) return;
-            File file = new File(dir, "flags-" + LocalDate.now() + ".log");
+            final LocalDate today = LocalDate.now();
+            if (!today.equals(lastCleanup)) {
+                lastCleanup = today;
+                cleanup(dir, today);
+            }
+            File file = new File(dir, "flags-" + today + ".log");
+            if (file.length() >= maxFileBytes) { // gunluk sinir doldu: kuyrugu bosalt, bir kez not dus
+                int discarded = 0;
+                while (QUEUE.poll() != null) {
+                    QUEUED.decrementAndGet();
+                    discarded++;
+                }
+                DROPPED.reset();
+                if (!today.equals(cappedDay)) {
+                    cappedDay = today;
+                    Files.writeString(file.toPath(), "# gunluk boyut siniri doldu; bugun baska satir yazilmayacak (" + discarded + "+ satir atildi)\n",
+                            StandardCharsets.UTF_8, StandardOpenOption.APPEND);
+                    LogUtil.warn("HapiAC flag logu gunluk boyut sinirina ulasti (hapi.flag-log-max-mb); bugun yazim durdu");
+                }
+                return;
+            }
             try (BufferedWriter out = Files.newBufferedWriter(file.toPath(), StandardCharsets.UTF_8,
                     StandardOpenOption.CREATE, StandardOpenOption.APPEND)) {
                 String line;
@@ -152,6 +198,20 @@ public final class HapiFlagLog {
             }
         } catch (IOException | RuntimeException e) {
             LogUtil.warn("HapiAC flag logu yazilamadi: " + e);
+        }
+    }
+
+    private static void cleanup(File dir, LocalDate today) {
+        if (keepDays <= 0) return;
+        final File[] files = dir.listFiles((d, n) -> n.startsWith("flags-") && n.endsWith(".log"));
+        if (files == null) return;
+        final LocalDate limit = today.minusDays(keepDays);
+        for (File f : files) {
+            try {
+                final String name = f.getName();
+                if (LocalDate.parse(name.substring(6, name.length() - 4)).isBefore(limit)) f.delete();
+            } catch (RuntimeException ignored) { // adi tarih olmayan dosyaya dokunma
+            }
         }
     }
 

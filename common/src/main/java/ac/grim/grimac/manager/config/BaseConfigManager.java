@@ -68,6 +68,7 @@ public class BaseConfigManager {
 
         printAlertsToConsole = config.getBooleanElse("alerts.print-to-console", true);
         ac.grim.grimac.hapi.HapiFlagLog.setFileEnabled(config.getBooleanElse("hapi.flag-log", true)); // HapiAC
+        ac.grim.grimac.hapi.HapiFlagLog.setLimits(config.getIntElse("hapi.flag-log-max-mb", 256), config.getIntElse("hapi.flag-log-keep-days", 14));
         prefix = config.getStringElse("prefix", "&bGrim &8»");
 
         webhookNotEnabled = config.getStringElse("webhook-not-enabled", "Discord webhooks are not enabled!");

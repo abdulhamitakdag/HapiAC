@@ -232,7 +232,10 @@ public class SetbackTeleportUtil extends GrimProcessor implements PostPrediction
             blockOffsets = true;
         }
 
-        hapiLogSetback(position, isResync);
+        try {
+            hapiLogSetback(position, isResync);
+        } catch (RuntimeException ignored) { // kayit hatasi geri cekmeyi engellememeli
+        }
 
         SetBackData data = new SetBackData(new TeleportData(position, 0, 0, null, RelativeFlag.YAW.or(RelativeFlag.PITCH), player.lastTransactionSent.get(), 0), player.yaw, player.pitch, clientVel, player.inVehicle(), false);
         sendSetback(data);

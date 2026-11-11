@@ -6,6 +6,10 @@ hapi:
   # (ihlal sütunu = son 10 sn içindeki kaçıncı geri çekme; ayrıntıda neden, mesafe, konum, binek).
   # Sayaçlar için: /grim top [check|oyuncu|dunya|geri|sifirla] [adet]   (geri = nedene göre geri çekmeler)
   flag-log: true
+  # Günlük log dosyası bu boyuta (MB) ulaşınca o gün yazım durur (0 = sınırsız); disk dolmasın diye
+  flag-log-max-mb: 256
+  # Bu kadar günden eski log dosyaları silinir (0 = silinmez)
+  flag-log-keep-days: 14
 
   # ---------------------------------------------------------------------------
   # Vuruş modülü (sezgisel). Yalnızca oyuncu bir OYUNCUYA vurduktan sonraki
