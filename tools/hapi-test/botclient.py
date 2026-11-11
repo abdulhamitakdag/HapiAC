@@ -74,6 +74,7 @@ class Bot:
         self.ground = True
         self.gy = 0.0  # uzerinde durulan zemin yuksekligi
         self.resync = False
+        self.popped = False  # totemimiz patladi (entity event 35)
 
     # --- cerceveleme ---
     def send(self, pid, payload=b""):
@@ -199,6 +200,10 @@ class Bot:
             if eid in self.epos:
                 self.epos[eid] = list(buf.unpack("ddd"))
                 self.lerp[eid] = 3
+        elif pid == 0x1E:  # entity event
+            (eid, status) = buf.unpack("ib")
+            if eid == self.eid and status == 35:
+                self.popped = True
         elif pid == 0x1C:
             self.kick = "play: " + repr(buf.d[buf.i:][:300])
             self.alive = False
@@ -250,6 +255,19 @@ class Bot:
         self.seq = getattr(self, "seq", 1) + 1
         self.send(0x3F, varint(0) + struct.pack(">Q", pos) + varint(face) + struct.pack(">fff", cx, cy, cz) + b"\x00\x00" + varint(self.seq))
         self.send(0x3C, varint(0))
+
+    def click(self, window, slot, button=0, mode=0):  # mode: 0 normal, 1 shift (quick move), 2 swap; degisen slot / imlec bildirilmez
+        self.send(0x11, varint(window) + varint(0) + struct.pack(">hb", slot, button) + varint(mode) + varint(0) + b"\x00")
+
+    def swap_offhand(self):  # F tusu
+        self.send(0x28, varint(6) + struct.pack(">Q", 0) + b"\x00" + varint(0))
+
+    def held(self, slot):
+        self.send(0x34, struct.pack(">h", slot))
+
+    def use_item(self):
+        self.seq = getattr(self, "seq", 1) + 1
+        self.send(0x40, varint(0) + varint(self.seq) + struct.pack(">ff", self.yaw, self.pitch))
 
     def input(self, flags):  # tus durumu: 1 ileri, 2 geri, 4 sol, 8 sag, 16 ziplama, 32 egilme, 64 kosma
         self.send(0x2A, bytes([flags]))
@@ -520,6 +538,72 @@ def run(scenario, seconds):
                     else:  # hizliinsan: 14-16 tiklama/sn, tick basina 0-2 paket
                         for _ in range(random.choice([0, 1, 1, 1, 2])):
                             victim.place(bx, by, bz, 1, 0.5, 1.0, 0.5)
+            elif scenario in ("totem", "totemsabit", "toteminsan", "totemspam"):
+                # Envanter modulu: kurbanin totemi 60 tickte bir patlatilir, ana eldeki totemi F ile diger ele alir.
+                # totem=ayni tick, totemsabit=hep 4 tick sonra, toteminsan=4-9 tick, totemspam=F tusuna surekli basar
+                if fifo is not None and t == 1:
+                    fifo.write("gamemode survival HapiKurban\n")
+                    fifo.flush()
+                ph = t % 60
+                if fifo is not None and ph == 5:
+                    fifo.write("item replace entity HapiKurban weapon.mainhand with totem_of_undying\nitem replace entity HapiKurban weapon.offhand with totem_of_undying\n")
+                    fifo.flush()
+                    victim.popped = False
+                    nxt[0] = None
+                elif fifo is not None and ph == 30:
+                    fifo.write("damage HapiKurban 1000\n")
+                    fifo.flush()
+                if scenario == "totemspam":
+                    if ph >= 22 and ph % 4 == 2 and ph < 50:
+                        victim.swap_offhand()
+                elif victim.popped and ph >= 30:
+                    if nxt[0] is None:
+                        nxt[0] = t + {"totem": 0, "totemsabit": 4}.get(scenario, random.randint(4, 9))
+                    if t == nxt[0]:
+                        victim.swap_offhand()
+                        victim.popped = False
+            elif scenario in ("sandikbosalt", "sandikcift", "sandikritim", "sandikseri", "sandikinsan"):
+                # Envanter modulu: kurban yanindaki sandigi acar ve slotlara shift-tiklar.
+                # bosalt=tek tickte 12 slot, cift=tek tik + 3 tick sonra 12 slot (vanilla shift+cift tik),
+                # ritim=3 tickte bir, seri=her tick, insan=2-6 tick oynak
+                cx, cy, cz = math.floor(victim.x) + 1, int(victim.y), math.floor(victim.z)
+                if fifo is not None and t == 1:
+                    fifo.write("gamemode survival HapiKurban\nsetblock %d %d %d chest\n" % (cx, cy, cz))
+                    fifo.flush()
+                if t == 40:
+                    victim.use_block(cx, cy, cz)
+                    nxt[0] = 60
+                k = t - 60
+                if k >= 0:
+                    if scenario == "sandikbosalt" and k % 40 == 0:
+                        for i in range(12):
+                            victim.click(1, i, 0, 1)
+                    elif scenario == "sandikcift" and k % 40 == 0:
+                        victim.click(1, 14, 0, 1)
+                    elif scenario == "sandikcift" and k % 40 == 3:
+                        for i in range(12):
+                            victim.click(1, i, 0, 1)
+                    elif scenario in ("sandikritim", "sandikseri", "sandikinsan") and t >= nxt[0]:
+                        victim.click(1, k % 27, 0, 1)
+                        nxt[0] = t + (3 if scenario == "sandikritim" else 1 if scenario == "sandikseri" else random.randint(2, 6))
+            elif scenario in ("sessiz", "sessizinsan"):
+                # Envanter modulu: sessiz=tek tickte slot degistir + kullan + geri don; sessizinsan=ayni is uc ayri tickte
+                if fifo is not None and t == 1:
+                    fifo.write("gamemode survival HapiKurban\n")
+                    fifo.flush()
+                ph = t % 20
+                if scenario == "sessiz":
+                    if ph == 10:
+                        victim.held(3)
+                        victim.use_item()
+                        victim.held(0)
+                else:
+                    if ph == 10:
+                        victim.held(3)
+                    elif ph == 11:
+                        victim.use_item()
+                    elif ph == 13:
+                        victim.held(0)
             elif scenario == "spam":  # tick basina 2 vurus
                 attacker.attack(target)
                 attacker.attack(target)

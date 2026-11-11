@@ -275,6 +275,12 @@ public class CheckManager implements BasicReloadable {
                 .put(ac.grim.grimac.checks.impl.hapi.SprintReset.class, new ac.grim.grimac.checks.impl.hapi.SprintReset(player))
                 .put(ac.grim.grimac.checks.impl.hapi.JumpReset.class, new ac.grim.grimac.checks.impl.hapi.JumpReset(player)) // tahmin sonrasi dinleyici
                 .put(CombatTracker.class, new CombatTracker(player))
+                // HapiAC envanter modulu: dort check'i InventoryTracker cagirir
+                .put(ac.grim.grimac.checks.impl.hapi.AutoTotem.class, new ac.grim.grimac.checks.impl.hapi.AutoTotem(player))
+                .put(ac.grim.grimac.checks.impl.hapi.InventoryBurst.class, new ac.grim.grimac.checks.impl.hapi.InventoryBurst(player))
+                .put(ac.grim.grimac.checks.impl.hapi.InventoryRhythm.class, new ac.grim.grimac.checks.impl.hapi.InventoryRhythm(player))
+                .put(ac.grim.grimac.checks.impl.hapi.SilentSwap.class, new ac.grim.grimac.checks.impl.hapi.SilentSwap(player))
+                .put(ac.grim.grimac.checks.impl.hapi.InventoryTracker.class, new ac.grim.grimac.checks.impl.hapi.InventoryTracker(player))
                 // HapiAC yapi modulu: uc check'i BuildTracker cagirir
                 .put(ac.grim.grimac.checks.impl.hapi.ScaffoldSnap.class, new ac.grim.grimac.checks.impl.hapi.ScaffoldSnap(player))
                 .put(ac.grim.grimac.checks.impl.hapi.FastPlace.class, new ac.grim.grimac.checks.impl.hapi.FastPlace(player))

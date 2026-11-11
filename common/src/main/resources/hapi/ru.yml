@@ -60,6 +60,26 @@ hapi:
       # İki blok arasında en çok bu kadar tick geçerse seri sürer
       max-gap-ticks: 8
 
+  # ---------------------------------------------------------------------------
+  # Envanter / otomasyon modülü (sezgisel).
+  # ---------------------------------------------------------------------------
+  inventory:
+    enabled: true
+    auto-totem:
+      # Tepki süresi istemci tickiyle ölçülür (oyuncunun patlamayı gördüğü andan takas paketine kadar);
+      # ağ gecikmesi ölçüme karışmaz. Tepki bu kadar tick veya daha kısaysa "anında" sayılır; 2 tekrar flag
+      instant-ticks: 1
+      # Üst üste bu kadar tepkinin hepsi birebir aynı tick sayısıysa (en çok 8 tick) flag
+      consistent-samples: 5
+    burst:
+      # Tek tickte bundan fazla FARKLI slota tıklama flag (shift basılı sürükleme tickte birkaç slota ulaşır).
+      # Vanilla "shift + çift tık ile aynı türü topluca taşıma" sayılmaz.
+      max-slots-per-tick: 6
+    rhythm:
+      # Farklı slotlara üst üste bu kadar tıklamanın hepsi birebir aynı tick aralığıyla gelirse flag
+      # (aralık 1 tick ise eşik 1,5 katı: shift basılı sürükleme de tick başına bir slot verebilir)
+      sample-size: 15
+
   velocity:
     jump-reset:
       # Otomatik jump reset: yerde bekleyen (en az "min-ground-ticks") ve zıplama tuşuna basmayan
@@ -145,6 +165,18 @@ hapi:
     BridgePerfect:
       enabled: true
       dont-alert-until: 2
+    AutoTotem:
+      enabled: true
+      dont-alert-until: 1
+    InventoryBurst:
+      enabled: true
+      dont-alert-until: 1
+    InventoryRhythm:
+      enabled: true
+      dont-alert-until: 2
+    SilentSwap:
+      enabled: true
+      dont-alert-until: 1
     # Bağlantı takılması sonrası toparlanma bu üç check'te saniyede onlarca alarm üretir
     TimerA:
       alert-cooldown-seconds: 5
