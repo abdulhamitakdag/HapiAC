@@ -80,6 +80,17 @@ hapi:
       # (aralık 1 tick ise eşik 1,5 katı: shift basılı sürükleme de tick başına bir slot verebilir)
       sample-size: 15
 
+  # ---------------------------------------------------------------------------
+  # Kristal modülü (sezgisel).
+  # ---------------------------------------------------------------------------
+  crystal:
+    enabled: true
+    speed:
+      # Üst üste bu kadar end kristalinin hepsi, oyuncunun ekranında göründükten en çok "max-ticks" tick sonra
+      # ve arada hiç boşa giden sol tık olmadan kırılırsa flag (insan sol tuşa sürekli basar, boşa tıklar)
+      sample-size: 12
+      max-ticks: 1
+
   velocity:
     jump-reset:
       # Otomatik jump reset: yerde bekleyen (en az "min-ground-ticks") ve zıplama tuşuna basmayan
@@ -177,6 +188,13 @@ hapi:
     SilentSwap:
       enabled: true
       dont-alert-until: 1
+    CrystalSpeed:
+      enabled: true
+      dont-alert-until: 1
+    # Oyuncuya henüz gönderilmemiş varlık kimliğine vuruş (kristal kimliği tahmini)
+    AttackPredict:
+      enabled: true
+      dont-alert-until: 2
     # Bağlantı takılması sonrası toparlanma bu üç check'te saniyede onlarca alarm üretir
     TimerA:
       alert-cooldown-seconds: 5

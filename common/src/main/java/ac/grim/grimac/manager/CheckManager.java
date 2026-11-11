@@ -275,6 +275,10 @@ public class CheckManager implements BasicReloadable {
                 .put(ac.grim.grimac.checks.impl.hapi.SprintReset.class, new ac.grim.grimac.checks.impl.hapi.SprintReset(player))
                 .put(ac.grim.grimac.checks.impl.hapi.JumpReset.class, new ac.grim.grimac.checks.impl.hapi.JumpReset(player)) // tahmin sonrasi dinleyici
                 .put(CombatTracker.class, new CombatTracker(player))
+                // HapiAC kristal modulu: iki check'i CrystalTracker cagirir
+                .put(ac.grim.grimac.checks.impl.hapi.CrystalSpeed.class, new ac.grim.grimac.checks.impl.hapi.CrystalSpeed(player))
+                .put(ac.grim.grimac.checks.impl.hapi.AttackPredict.class, new ac.grim.grimac.checks.impl.hapi.AttackPredict(player))
+                .put(ac.grim.grimac.checks.impl.hapi.CrystalTracker.class, new ac.grim.grimac.checks.impl.hapi.CrystalTracker(player))
                 // HapiAC envanter modulu: dort check'i InventoryTracker cagirir
                 .put(ac.grim.grimac.checks.impl.hapi.AutoTotem.class, new ac.grim.grimac.checks.impl.hapi.AutoTotem(player))
                 .put(ac.grim.grimac.checks.impl.hapi.InventoryBurst.class, new ac.grim.grimac.checks.impl.hapi.InventoryBurst(player))

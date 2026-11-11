@@ -604,6 +604,33 @@ def run(scenario, seconds):
                         victim.use_item()
                     elif ph == 13:
                         victim.held(0)
+            elif scenario in ("kristal", "kristalinsan", "kristalyavas", "tahmin"):
+                # Kristal modulu: saldirganin yanina 10 tickte bir (hasar almaz) end kristali cagrilir.
+                # kristal=gorundugu tick tek vurus, kristalinsan=surekli sol tik (bosa tiklamali), kristalyavas=5 tick sonra,
+                # tahmin=henuz dogmamis varlik kimligine vurus
+                if fifo is not None and t == 1:
+                    fifo.write("gamemode survival HapiSaldir\n")
+                    fifo.flush()
+                    base = set(attacker.epos)
+                if t > 20:
+                    if fifo is not None and t % 10 == 0 and scenario != "tahmin":
+                        fifo.write("kill @e[type=end_crystal]\nsummon end_crystal %.1f %.1f %.1f {Invulnerable:1b,ShowBottom:0b}\n" % (attacker.x + 2, attacker.y, attacker.z))
+                        fifo.flush()
+                    if scenario == "tahmin":
+                        if t % 20 == 0:
+                            attacker.attack(max(attacker.epos) + 40)
+                    else:
+                        fresh = [e for e in attacker.epos if e not in base]
+                        if scenario == "kristalinsan":
+                            if t % 2 == 0:
+                                attacker.attack(fresh[0]) if fresh else attacker.swing()
+                                base.update(fresh)
+                        else:
+                            for e in fresh:
+                                seen = attacker.lerp.setdefault(("k", e), t)
+                                if t - seen >= (0 if scenario == "kristal" else 5):
+                                    attacker.attack(e)
+                                    base.add(e)
             elif scenario == "spam":  # tick basina 2 vurus
                 attacker.attack(target)
                 attacker.attack(target)
