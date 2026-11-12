@@ -207,7 +207,7 @@ bukkit {
         }
 
         register("hapi.bildirim") {
-            description = "Receive cheat detection notifications"
+            description = "Receive cheat detection notifications (toggle with /grim bildirim)"
             default = Permission.Default.FALSE
         }
 
