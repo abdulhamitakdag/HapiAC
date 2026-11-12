@@ -201,6 +201,16 @@ bukkit {
             default = Permission.Default.OP
         }
 
+        register("grim.bildir") {
+            description = "Send a notification to players with hapi.bildirim"
+            default = Permission.Default.OP
+        }
+
+        register("hapi.bildirim") {
+            description = "Receive cheat detection notifications"
+            default = Permission.Default.FALSE
+        }
+
         register("grim.nosetback") {
             description = "Disable setback"
             default = Permission.Default.FALSE
