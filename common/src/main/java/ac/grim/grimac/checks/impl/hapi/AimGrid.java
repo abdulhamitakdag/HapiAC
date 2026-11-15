@@ -30,12 +30,12 @@ public final class AimGrid extends Check {
 
     @Override
     protected double defaultAlertFrom() {
-        return 2;
+        return 5;
     }
 
     @Override
     public void onReload(@NotNull ConfigManager config) {
-        maxOffRatio = config.getDoubleElse("hapi.combat.aim-grid.max-off-grid-ratio", 0.7);
+        maxOffRatio = config.getDoubleElse("hapi.combat.aim-grid.max-off-grid-ratio", 0.9);
     }
 
     void onTick(float dYaw) {

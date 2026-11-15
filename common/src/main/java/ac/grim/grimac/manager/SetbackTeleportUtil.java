@@ -263,7 +263,9 @@ public class SetbackTeleportUtil extends GrimProcessor implements PostPrediction
         final ac.grim.grimac.checks.Check last = player.hapiLastFlagged;
         final String cause;
         if (isResync) {
-            cause = "Resync";
+            // Dogus/isinlanma el sikismasi ve yuklenmemis chunk yeniden esitlemesi hile ya da yanlis alarm degil;
+            // raporda gercek geri cekmelerden ayrilabilsin diye ayri adla yazilir.
+            cause = !hasAcceptedSpawnTeleport ? "Resync/dogus" : insideUnloadedChunk() ? "Resync/chunk" : "Resync";
         } else if (last != null && now - last.getLastViolationTime() < 250) {
             cause = last.getCheckName();
         } else {

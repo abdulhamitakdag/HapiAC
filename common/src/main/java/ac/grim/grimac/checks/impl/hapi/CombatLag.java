@@ -23,6 +23,7 @@ public final class CombatLag extends Check {
     private int minIncreaseMs; // onReload atar (super() icinde)
     private double minRatio;
     private int fightsToFlag;
+    private int maxBaseMs;
 
     private double base;
     private int baseTicks;
@@ -41,6 +42,7 @@ public final class CombatLag extends Check {
         minIncreaseMs = config.getIntElse("hapi.net.combat-lag.min-increase-ms", 120);
         minRatio = config.getDoubleElse("hapi.net.combat-lag.min-ratio", 1.8);
         fightsToFlag = config.getIntElse("hapi.net.combat-lag.fights-to-flag", 3);
+        maxBaseMs = config.getIntElse("hapi.net.combat-lag.max-base-ms", 400);
     }
 
     void onTick(boolean combat) {
@@ -60,7 +62,7 @@ public final class CombatLag extends Check {
 
         if (inFight) {
             inFight = false;
-            if (fightTicks >= MIN_FIGHT_TICKS && baseTicks >= MIN_BASE_TICKS) {
+            if (fightTicks >= MIN_FIGHT_TICKS && baseTicks >= MIN_BASE_TICKS && fightBase <= maxBaseMs) {
                 final double avg = (double) fightSum / fightTicks;
                 if (avg - fightBase >= minIncreaseMs && avg >= fightBase * minRatio) {
                     if (++suspicious >= fightsToFlag) {

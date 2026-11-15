@@ -19,7 +19,7 @@ public final class InventoryHit extends Check {
 
     @Override
     protected double defaultAlertFrom() {
-        return 2;
+        return 3;
     }
 
     void onAttack() {

@@ -33,6 +33,7 @@ public final class ClientMod extends Check implements PacketReceiveListener {
     private static final int REPORT_AFTER_TICKS = 100;
 
     private List<String> patterns; // onReload atar (super() icinde)
+    private List<String> ignored;
     private boolean logEnabled;
 
     private final TreeSet<String> channels = new TreeSet<>();
@@ -51,6 +52,12 @@ public final class ClientMod extends Check implements PacketReceiveListener {
             if (p != null && !p.isBlank()) lowered.add(p.toLowerCase(Locale.ROOT));
         }
         patterns = lowered;
+        // Proxy ve sunucu eklentilerinin oyuncu adina kaydettigi kanallar istemci modu degildir
+        final List<String> skip = new ArrayList<>();
+        for (String p : config.getStringListElse("hapi.client.ignore-channels", List.of("bungeecord:", "floodgate:"))) {
+            if (p != null && !p.isBlank()) skip.add(p.toLowerCase(Locale.ROOT));
+        }
+        ignored = skip;
     }
 
     @Override
@@ -73,7 +80,15 @@ public final class ClientMod extends Check implements PacketReceiveListener {
         for (String name : new String(data, StandardCharsets.UTF_8).split("\0")) {
             if (channels.size() >= MAX_CHANNELS) return;
             if (name.isEmpty() || name.length() > MAX_NAME) continue;
-            channels.add(clean(name));
+            final String cleaned = clean(name);
+            boolean skip = false;
+            for (int i = 0; i < ignored.size(); i++) {
+                if (cleaned.startsWith(ignored.get(i))) {
+                    skip = true;
+                    break;
+                }
+            }
+            if (!skip) channels.add(cleaned);
         }
     }
 

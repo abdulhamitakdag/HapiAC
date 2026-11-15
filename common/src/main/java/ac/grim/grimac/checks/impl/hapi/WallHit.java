@@ -68,6 +68,9 @@ public final class WallHit extends Check {
             final int size = data.downCast(boxes);
             for (int i = 0; i < size; i++) {
                 final SimpleCollisionBox box = boxes[i].copy();
+                // Yalnizca tam blok engel sayilir: kaplumbaga yumurtasi, basamak, cit gibi kucuk/parcali
+                // kutularin nisan sekli carpisma kutusundan farkli olabilir (canli veride tum alarmlar buradandi)
+                if (box.maxX - box.minX < 0.99 || box.maxZ - box.minZ < 0.99 || box.maxY - box.minY < 0.99) continue;
                 // Cit/duvar carpisma kutusu 1.5 blok ama nisan (secim) kutusu 1 blok: ustunden vurulabilir
                 if (box.maxY > pos.getY() + 1) box.maxY = pos.getY() + 1;
                 box.expand(-shrink);

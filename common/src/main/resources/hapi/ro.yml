@@ -26,7 +26,7 @@ hapi:
       min-flick-angle: 45
     aim-grid:
       # 50 dönüşlük pencerede hassasiyet ızgarasına oturmayan dönüş oranı bu değeri aşarsa flag
-      max-off-grid-ratio: 0.7
+      max-off-grid-ratio: 0.9
     aim-track:
       # Hareketli hedefe göre bakış sapmasının standart sapması (derece) bunun altındaysa flag
       max-offset-stddev: 0.35
@@ -105,6 +105,8 @@ hapi:
     # İstemci markası ya da kanal adı bu parçalardan birini içeriyorsa "ClientMod" alarmı verilir.
     # Örnek: ["xaerominimap", "xaeroworldmap", "litematica", "servux", "axiom"]
     alert-patterns: []
+    # Bu öneklerle başlayan kanallar kayda ve alarma girmez (proxy / sunucu eklentilerinin kaydettiği kanallar)
+    ignore-channels: ["bungeecord:", "floodgate:"]
 
   velocity:
     jump-reset:
@@ -122,6 +124,8 @@ hapi:
       min-increase-ms: 120
       min-ratio: 1.8
       fights-to-flag: 3
+      # Dövüş dışı taban gecikmesi bunun üstündeyse (zaten kötü bağlantı) oyuncu değerlendirilmez
+      max-base-ms: 400
 
   # ---------------------------------------------------------------------------
   # Check başına ayarlar. Anahtar = check'in config adı (Grim'in kendi check'leri
@@ -148,7 +152,7 @@ hapi:
       dont-alert-until: 1
     AimGrid:
       enabled: true
-      dont-alert-until: 2
+      dont-alert-until: 5
     AimTrack:
       enabled: true
       dont-alert-until: 2
@@ -172,7 +176,7 @@ hapi:
       dont-alert-until: 1
     InventoryHit:
       enabled: true
-      dont-alert-until: 2
+      dont-alert-until: 3
     CombatLag:
       enabled: true
       dont-alert-until: 1
@@ -196,7 +200,7 @@ hapi:
       dont-alert-until: 1
     InventoryBurst:
       enabled: true
-      dont-alert-until: 1
+      dont-alert-until: 5
     InventoryRhythm:
       enabled: true
       dont-alert-until: 2
