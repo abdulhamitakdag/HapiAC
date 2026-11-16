@@ -22,13 +22,13 @@ import java.util.stream.Collectors;
 
 /**
  * HapiAC hile bildirimi.
- * /grim bildirim — hapi.bildirim iznine sahip oyuncu bildirimleri kendisi için açar/kapatır (kalıcı, varsayılan kapalı).
- * /grim bildir <mesaj> — MiniMessage metnini bildirimi açık olan çevrimiçi oyunculara yollar.
+ * /grim bildirim — hapi.bildirim iznine sahip oyuncu bildirimleri kendisi için kapatır/açar (kalıcı, varsayılan açık).
+ * /grim bildir <mesaj> — MiniMessage metnini bildirimi kapatmamış izinli çevrimiçi oyunculara yollar.
  */
 public class GrimBildir implements BuildableCommand {
     public static final String RECEIVE_PERMISSION = "hapi.bildirim";
 
-    private Set<UUID> enabled; // ilk kullanımda dosyadan okunur
+    private Set<UUID> disabled; // bildirimi kapatanlar; ilk kullanımda dosyadan okunur
 
     @Override
     public void register(CommandManager<Sender> commandManager, CloudPlatformCommandArguments arguments) {
@@ -43,10 +43,10 @@ public class GrimBildir implements BuildableCommand {
                 .required("mesaj", StringParser.greedyStringParser())
                 .handler(context -> {
                     Component message = MessageUtil.miniMessage(context.<String>get("mesaj"));
-                    Set<UUID> open = enabled();
+                    Set<UUID> closed = disabled();
                     int sent = 0;
                     for (PlatformPlayer player : GrimAPI.INSTANCE.getPlatformPlayerFactory().getOnlinePlayers()) {
-                        if (!open.contains(player.getUniqueId()) || !player.hasPermission(RECEIVE_PERMISSION, false)) continue;
+                        if (closed.contains(player.getUniqueId()) || !player.hasPermission(RECEIVE_PERMISSION, false)) continue;
                         player.sendMessage(message);
                         sent++;
                     }
@@ -60,21 +60,21 @@ public class GrimBildir implements BuildableCommand {
             sender.sendMessage(Component.text("Bu komutu yalnızca oyuncular kullanabilir.", NamedTextColor.RED));
             return;
         }
-        Set<UUID> open = enabled();
+        Set<UUID> closed = disabled();
         UUID id = sender.getUniqueId();
-        boolean now = !open.remove(id) && open.add(id);
-        save(open);
+        boolean now = closed.remove(id) || !closed.add(id);
+        save(closed);
         sender.sendMessage(now
                 ? Component.text("Hile bildirimleri açıldı.", NamedTextColor.GREEN)
                 : Component.text("Hile bildirimleri kapatıldı.", NamedTextColor.RED));
     }
 
     private static File file() {
-        return new File(new File(GrimAPI.INSTANCE.getGrimPlugin().getDataFolder(), "hapi"), "bildirim-acik.txt");
+        return new File(new File(GrimAPI.INSTANCE.getGrimPlugin().getDataFolder(), "hapi"), "bildirim-kapali.txt");
     }
 
-    private synchronized Set<UUID> enabled() {
-        if (enabled != null) return enabled;
+    private synchronized Set<UUID> disabled() {
+        if (disabled != null) return disabled;
         Set<UUID> set = ConcurrentHashMap.newKeySet();
         File file = file();
         if (file.isFile()) {
@@ -90,14 +90,14 @@ public class GrimBildir implements BuildableCommand {
                 // okunamazsa liste boş başlar
             }
         }
-        return enabled = set;
+        return disabled = set;
     }
 
-    private static synchronized void save(Set<UUID> open) {
+    private static synchronized void save(Set<UUID> closed) {
         File file = file();
         try {
             Files.createDirectories(file.getParentFile().toPath());
-            Files.writeString(file.toPath(), open.stream().map(UUID::toString).collect(Collectors.joining("\n")), StandardCharsets.UTF_8);
+            Files.writeString(file.toPath(), closed.stream().map(UUID::toString).collect(Collectors.joining("\n")), StandardCharsets.UTF_8);
         } catch (IOException ignored) {
             // yazılamazsa ayar yalnız bu oturumda geçerli kalır
         }
