@@ -41,7 +41,8 @@ public class Phase extends Check implements PostPredictionListener {
                             continue; // 1.8 glitchy block, ignore
                         }
                     }
-                    flagWithSetback();
+                    // HapiAC: hangi bloga girildigi flag loguna yazilir (yanlis alarm ureten blok turleri icin)
+                    flagWithSetback("blok=" + player.compensatedWorld.getBlockType((box.minX + box.maxX) / 2, (box.minY + box.maxY) / 2, (box.minZ + box.maxZ) / 2).getName());
                     return;
                 }
             }

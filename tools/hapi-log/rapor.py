@@ -9,6 +9,8 @@ Dizin verilirse icindeki flags-*.log dosyalarinin hepsi okunur. "ad=" on eki o k
 
 Log sutunlari (TSV): saat, oyuncu, check, ihlal, dunya, ping, surum, marka, ayrinti
 Geri cekmeler "SETBACK" check adiyla gelir; ayrintida neden=, yer=, mesafe=, konum= bulunur.
+Ihlal geri cekmelerinde ayrica alt=/ic= (ayak altindaki ve icindeki blok), durum sozcukleri ve efekt= yazilir.
+"Resync/dogus", "Resync/chunk" el sikisma; "Resync/tekrar" ve "Hiz/tekrar" onceki geri cekmenin devamidir.
 Girisler "CLIENT" adiyla gelir; ayrintida istemcinin bildirdigi mod kanallari bulunur.
 """
 import glob
@@ -138,6 +140,20 @@ def main():
         tablo("Geri cekmeler: nedene gore", [[c, v[0], len(v[1]), "%.2f" % (v[2] / v[0]), v[3]] for c, v in sorted(neden.items(), key=lambda kv: -kv[1][0])],
               ["neden", "adet", "oyuncu", "ort. mesafe", "zincir>=5"])
         tablo("Geri cekmeler: cagri yerine gore", [[c, y, n] for (c, y), n in yer.most_common(adet)], ["neden", "yer", "adet"])
+        # ortam: alt=/ic= blok ve durum sozcukleri (zemin, kosu, kullanim, efekt=...) yalniz ihlal geri cekmelerinde yazilir
+        ortam = defaultdict(lambda: [Counter(), Counter(), 0])
+        for k in geri:
+            a = dict(x.split("=", 1) for x in k["ayrinti"].split() if "=" in x)
+            if "alt" not in a:
+                continue
+            o = ortam[a.get("neden", "?")]
+            o[0][a["alt"] + ("+" + a["ic"] if "ic" in a else "")] += 1
+            o[1].update(x for x in k["ayrinti"].split() if "=" not in x)
+            o[1].update("efekt:" + e.rstrip("0123456789") for e in a.get("efekt", "").split(",") if e)
+            o[2] += 1
+        tablo("Geri cekmeler: ortam (alt+ic blok, durum)", [[c, v[2], ", ".join("%s %d" % x for x in v[0].most_common(5)),
+              ", ".join("%s %%%d" % (d, 100 * n // v[2]) for d, n in v[1].most_common(6))] for c, v in sorted(ortam.items(), key=lambda kv: -kv[1][2])],
+              ["neden", "adet", "en sik bloklar", "durum"])
         oy = Counter(k["oyuncu"] for k in geri)
         tablo("Geri cekmeler: oyuncuya gore", [[o, n, ", ".join("%s %d" % cn for cn in Counter(
             dict(x.split("=", 1) for x in k["ayrinti"].split() if "=" in x).get("neden", "?") for k in geri if k["oyuncu"] == o).most_common(3)),

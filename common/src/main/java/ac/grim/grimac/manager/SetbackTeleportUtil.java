@@ -265,7 +265,14 @@ public class SetbackTeleportUtil extends GrimProcessor implements PostPrediction
         if (isResync) {
             // Dogus/isinlanma el sikismasi ve yuklenmemis chunk yeniden esitlemesi hile ya da yanlis alarm degil;
             // raporda gercek geri cekmelerden ayrilabilsin diye ayri adla yazilir.
-            cause = !hasAcceptedSpawnTeleport ? "Resync/dogus" : insideUnloadedChunk() ? "Resync/chunk" : "Resync";
+            // "tekrar": onceki geri cekmenin hemen ardindan (ilk tick) hizi yeniden yollayan ikinci isinlama;
+            // kendi basina bir olay degil, zincirin devami.
+            cause = !hasAcceptedSpawnTeleport ? "Resync/dogus" : insideUnloadedChunk() ? "Resync/chunk"
+                    : requiredSetBack.getTicksComplete() == 1 && where.startsWith("MovementCheckRunner") ? "Resync/tekrar" : "Resync";
+        } else if (player.likelyKB != null && player.likelyKB.isSetback && where.startsWith("KnockbackHandler")) {
+            // Geri cekmeyle yollanan hiz alinmadi: ihlal sayilmaz, isinlama + hiz yeniden yollanir.
+            // Son flag veren check'e yazilirsa ilgisiz check'ler geri cekmis gibi gorunur.
+            cause = "Hiz/tekrar";
         } else if (last != null && now - last.getLastViolationTime() < 250) {
             cause = last.getCheckName();
         } else {
@@ -284,10 +291,46 @@ public class SetbackTeleportUtil extends GrimProcessor implements PostPrediction
         if (player.isFlying) sb.append(" ucus");
         if (player.isGliding) sb.append(" elytra");
         if (player.wasTouchingWater) sb.append(" su");
+        if (!isResync) hapiContext(sb);
         // Sayac anahtari "neden@cagiran sinif": ayni check farkli yollardan geri cekebilir
         // (or. Simulation@OffsetHandler = ilk geri cekme, Simulation@KnockbackHandler = geri cekme hizinin tekrari)
         final String key = cause.equals(where) ? where : cause + "@" + where.substring(0, where.indexOf(':'));
         ac.grim.grimac.hapi.HapiFlagLog.recordSetback(player, key, hapiStreak, sb.toString());
+    }
+
+    private static final com.github.retrooper.packetevents.protocol.potion.PotionType[] HAPI_EFFECTS = {
+            com.github.retrooper.packetevents.protocol.potion.PotionTypes.SPEED,
+            com.github.retrooper.packetevents.protocol.potion.PotionTypes.SLOWNESS,
+            com.github.retrooper.packetevents.protocol.potion.PotionTypes.JUMP_BOOST,
+            com.github.retrooper.packetevents.protocol.potion.PotionTypes.LEVITATION,
+            com.github.retrooper.packetevents.protocol.potion.PotionTypes.SLOW_FALLING,
+            com.github.retrooper.packetevents.protocol.potion.PotionTypes.DOLPHINS_GRACE,
+    };
+
+    /**
+     * HapiAC: ihlal kaynakli geri cekmenin yasandigi ortam (ayak altindaki ve icindeki blok, hareket durumu,
+     * efektler). Check'lerin cogu ayrinti yazmadigi icin yanlis alarmin kok nedeni buradan cikarilir.
+     */
+    private void hapiContext(StringBuilder sb) {
+        final var under = player.compensatedWorld.getBlockType(player.x, player.y - 0.2, player.z);
+        final var inside = player.compensatedWorld.getBlockType(player.x, player.y, player.z);
+        sb.append(" alt=").append(under.getName());
+        if (inside != under && !inside.isAir()) sb.append(" ic=").append(inside.getName());
+        if (player.onGround) sb.append(" zemin");
+        if (player.isSneaking) sb.append(" egik");
+        if (player.isSprinting) sb.append(" kosu");
+        if (player.isSwimming) sb.append(" yuzme");
+        if (player.isClimbing) sb.append(" tirman");
+        if (player.packetStateData.isSlowedByUsingItem()) sb.append(" kullanim");
+        if (player.likelyKB != null) sb.append(" savrulma");
+        if (player.stuckSpeedMultiplier != ac.grim.grimac.utils.nmsutil.StuckSpeed.NONE) sb.append(" takili");
+        boolean first = true;
+        for (var type : HAPI_EFFECTS) {
+            final var level = player.compensatedEntities.getPotionLevelForPlayer(type);
+            if (level.isEmpty()) continue;
+            sb.append(first ? " efekt=" : ",").append(type.getName().getKey()).append(level.getAsInt() + 1);
+            first = false;
+        }
     }
 
     private boolean isOnGround(Vector3d position) {
