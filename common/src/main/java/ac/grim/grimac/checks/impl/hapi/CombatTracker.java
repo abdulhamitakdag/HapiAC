@@ -4,6 +4,7 @@ import ac.grim.grimac.api.config.ConfigManager;
 import ac.grim.grimac.checks.GrimProcessor;
 import ac.grim.grimac.checks.type.PacketReceiveListener;
 import ac.grim.grimac.checks.type.RotationListener;
+import ac.grim.grimac.hapi.HapiFlagLog;
 import ac.grim.grimac.player.GrimPlayer;
 import ac.grim.grimac.utils.anticheat.update.RotationUpdate;
 import ac.grim.grimac.utils.data.packetentity.PacketEntity;
@@ -62,6 +63,15 @@ public final class CombatTracker extends GrimProcessor implements PacketReceiveL
     private float lastAbsDYaw, lastJolt;
     private int cinematicTicks;
     private int lastCinematicTick = NEVER;
+
+    // Suren dovusun ozeti (bkz. endFight)
+    private int fightStartTick = NEVER;
+    private int fightHits, fightSwings, fightMoving, fightSwitches, fightPeakRate;
+    private int fightDistCount, fightFar;
+    private double fightDistSum, fightDistMax;
+    private int rateSum;
+    private final byte[] rateRing = new byte[20];
+    private int rateIndex;
 
     public CombatTracker(@NotNull GrimPlayer player) {
         super(player);
@@ -132,6 +142,38 @@ public final class CombatTracker extends GrimProcessor implements PacketReceiveL
         if (cinematicTicks > 8) lastCinematicTick = tick;
     }
 
+    /** Reach, oyuncuya atilan ve erisim sinirini asmayan her vurusun mesafesini bildirir. */
+    public void onLegalHit(double distance) {
+        if (fightStartTick == NEVER) return;
+        fightDistCount++;
+        fightDistSum += distance;
+        if (distance > fightDistMax) fightDistMax = distance;
+        if (distance >= 2.8) fightFar++;
+    }
+
+    /**
+     * Dovus penceresi kapandiginda tek satirlik ozet yazar. Flag degildir: hilesiz oyuncularin da
+     * dagilimini toplar ki isabet, mesafe ve tiklama esikleri canli veriyle ayarlanabilsin.
+     */
+    private void endFight() {
+        if (fightHits >= 10) {
+            final int ticks = lastPlayerAttackTick - fightStartTick + 1;
+            HapiFlagLog.recordCombat(player, fightHits, "sure=" + ticks
+                    + " sallama=" + fightSwings
+                    + " hareketli=" + fightMoving
+                    + " hedef=" + (fightSwitches + 1)
+                    + " tepe=" + fightPeakRate
+                    + " mesafe=" + (fightDistCount == 0 ? "-" : String.format(java.util.Locale.ROOT, "%.2f/%.2f", fightDistSum / fightDistCount, fightDistMax))
+                    + " uzak=" + fightFar + "/" + fightDistCount);
+        }
+        fightStartTick = NEVER;
+        fightHits = fightSwings = fightMoving = fightSwitches = fightPeakRate = 0;
+        fightDistCount = fightFar = 0;
+        fightDistSum = fightDistMax = 0;
+        rateSum = 0;
+        java.util.Arrays.fill(rateRing, (byte) 0);
+    }
+
     private void onAttack(int entityId) {
         attacksThisTick++;
         if (aimSnap == null) init();
@@ -146,6 +188,7 @@ public final class CombatTracker extends GrimProcessor implements PacketReceiveL
                 final PacketEntity previous = player.compensatedEntities.entityMap.get(targetId);
                 if (previous != null && !previous.isDead) targetSwitch.onSwitch(tick, previous, entity);
             }
+            if (active && fightStartTick != NEVER && entityId != targetId) fightSwitches++;
             attackedPlayerThisTick = true;
             playerAttacksThisTick++;
             targetId = entityId;
@@ -168,6 +211,20 @@ public final class CombatTracker extends GrimProcessor implements PacketReceiveL
             if (attackedPlayerThisTick) {
                 attackRhythm.onAttack(tick);
                 lastPlayerAttackTick = tick;
+                if (fightStartTick == NEVER) fightStartTick = tick;
+                fightHits += playerAttacksThisTick;
+            }
+            if (fightStartTick != NEVER) {
+                // Uzun dovus 20 saniyelik dilimlerle yazilir (oyuncu dovus ortasinda cikarsa ozet kaybolmasin)
+                if (tick - lastPlayerAttackTick > windowTicks || tick - fightStartTick >= 400) {
+                    endFight();
+                } else {
+                    fightSwings += swingsThisTick;
+                    rateSum += Math.min(playerAttacksThisTick, 100) - rateRing[rateIndex];
+                    rateRing[rateIndex] = (byte) Math.min(playerAttacksThisTick, 100);
+                    if (++rateIndex == rateRing.length) rateIndex = 0;
+                    if (rateSum > fightPeakRate) fightPeakRate = rateSum;
+                }
             }
             combatLag.onTick(tick - lastPlayerAttackTick <= windowTicks);
             sprintReset.onTick(tick, attackedPlayerThisTick);
@@ -186,6 +243,7 @@ public final class CombatTracker extends GrimProcessor implements PacketReceiveL
                 if (prevAttackedPlayer) {
                     aimSnap.onAttackWindow(prev2DYaw, prevDYaw, dYaw);
                     hitAccuracy.onAttackWindow(prev2DYaw, prevDYaw, dYaw);
+                    if (Math.abs(prev2DYaw) > 2f || Math.abs(prevDYaw) > 2f || Math.abs(dYaw) > 2f) fightMoving++;
                 }
             }
         }

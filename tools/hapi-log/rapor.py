@@ -84,7 +84,7 @@ def main():
         return 2
 
     kayit = [k for k in oku(kaynaklar, gun) if not oyuncu_sec or k["oyuncu"] == oyuncu_sec]
-    flag = [k for k in kayit if k["check"] not in ("SETBACK", "CLIENT")]
+    flag = [k for k in kayit if k["check"] not in ("SETBACK", "CLIENT", "DOVUS")]
     istemci = [k for k in kayit if k["check"] == "CLIENT"]
     geri = [k for k in kayit if k["check"] == "SETBACK"]
     gunler = sorted({k["tarih"] for k in kayit})

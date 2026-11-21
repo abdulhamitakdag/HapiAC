@@ -125,6 +125,17 @@ public final class HapiFlagLog {
         }
     }
 
+    /** Biten bir oyuncu dovusunun ozeti; check sutunu "DOVUS" olan satir (flag degildir). */
+    public static void recordCombat(GrimPlayer player, int hits, String summary) {
+        try {
+            String name = player.getName();
+            String world = player.getWorldName();
+            write(player, name == null ? "?" : name, world == null ? "?" : world, "DOVUS", hits, summary);
+        } catch (RuntimeException e) {
+            DROPPED.increment();
+        }
+    }
+
     private static void write(GrimPlayer player, String name, String world, String check, int vl, String detail) {
         if (!fileEnabled) return;
         if (QUEUED.get() >= MAX_QUEUE) {

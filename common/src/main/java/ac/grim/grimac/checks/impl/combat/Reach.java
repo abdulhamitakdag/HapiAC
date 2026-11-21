@@ -319,6 +319,10 @@ public class Reach extends Check implements PacketReceiveListener {
             } else {
                 cancelBuffer = Math.max(0, cancelBuffer - 0.25);
                 if (wallHit != null && minDistance > 0) wallHit.end();
+                // HapiAC: kurala uygun vuruslarin mesafesi dovus ozetine girer
+                if (!isPrediction && reachEntity.getType() == EntityTypes.PLAYER) {
+                    player.checkManager.get(ac.grim.grimac.checks.impl.hapi.CombatTracker.class).onLegalHit(minDistance);
+                }
             }
         }
 
