@@ -1,4 +1,4 @@
-prefix: "&bGrim &8\u00BB"
+prefix: "&aHapi&fAC &8\u00BB"
 
 alerts-enabled: "%prefix% &fBenachrichtigungen aktiviert"
 alerts-disabled: "%prefix% &fBenachrichtigungen deaktiviert"
