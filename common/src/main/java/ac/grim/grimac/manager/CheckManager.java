@@ -274,6 +274,7 @@ public class CheckManager implements BasicReloadable {
                 .put(ac.grim.grimac.checks.impl.hapi.InventoryHit.class, new ac.grim.grimac.checks.impl.hapi.InventoryHit(player))
                 .put(ac.grim.grimac.checks.impl.hapi.CombatLag.class, new ac.grim.grimac.checks.impl.hapi.CombatLag(player))
                 .put(ac.grim.grimac.checks.impl.hapi.SprintReset.class, new ac.grim.grimac.checks.impl.hapi.SprintReset(player))
+                .put(ac.grim.grimac.checks.impl.hapi.Sezgi.class, new ac.grim.grimac.checks.impl.hapi.Sezgi(player))
                 .put(ac.grim.grimac.checks.impl.hapi.JumpReset.class, new ac.grim.grimac.checks.impl.hapi.JumpReset(player)) // tahmin sonrasi dinleyici
                 .put(CombatTracker.class, new CombatTracker(player))
                 // HapiAC kristal modulu: iki check'i CrystalTracker cagirir

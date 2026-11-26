@@ -43,6 +43,28 @@ hapi:
       # tanesinde ileri tuşu birebir aynı tickte bırakılıp aynı süre sonra basıldıysa flag
       sample-size: 10
       min-identical: 9
+    # Dövüş telemetrisi: biten her oyuncu dövüşünün tick tick ham kaydı (dönüş, hedefe göre nişan
+    # hatası, mesafe, vuruş zamanlaması) plugins/GrimAC/hapi/dovus-YYYY-AA-GG.log dosyasına yazılır.
+    # Eşik ayarı ve ileride model eğitimi içindir; flag-log sınırları bu dosyaya da uygulanır.
+    telemetry: true
+    # Sezgi: dövüş ölçütlerini oyuncunun kendi geçmişine ve sunucudaki diğer oyunculara göre değerlendirir.
+    # Ölçütler: kenar (bekleme süresi dolar dolmaz vuruş oranı), ani (nişan hedefe girdiği tickte vuruş
+    # oranı), merkez (vuruş anında nişanın hitbox merkezine uzaklığı), iz (hedefin yön değişimine
+    # gecikmesiz karşılık). Dağılım ve profiller plugins/GrimAC/hapi/sezgi.dat dosyasında tutulur.
+    sezgi:
+      # Bir ölçüt için sunucuda en az bu kadar dövüş birikmeden puanlama yapılmaz
+      min-population: 100
+      # Oyuncunun kendi tabanı için gereken en az dövüş sayısı ("degisim" bundan sonra çalışır)
+      min-baseline-fights: 10
+      # aykiri: her dövüşte (z - slack) biriktirilir; toplam limit'i iki ölçütte ya da 2×limit'i tek ölçütte aşarsa flag
+      outlier-slack: 2.5
+      outlier-limit: 8
+      # degisim: aynısı, oyuncunun kendi tabanına göre
+      change-slack: 1.0
+      change-limit: 8
+      # zamanlama: üst üste "timing-streak" dövüşte vuruşların en az bu oranı aynı bekleme tickinde
+      timing-share: 0.9
+      timing-streak: 3
 
   # ---------------------------------------------------------------------------
   # Yapı modülü (sezgisel). Grim blok koymanın vanilla kurallarına uyduğunu denetler

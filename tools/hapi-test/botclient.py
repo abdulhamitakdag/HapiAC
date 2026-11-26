@@ -402,6 +402,40 @@ def run(scenario, seconds):
                 if t >= nxt[0]:
                     attacker.attack(target) if (scenario == "kilit" or random.random() < 0.8) else attacker.swing()
                     nxt[0] = t + random.choice([10, 11, 12, 13, 14, 15, 17, 20])
+            elif scenario in ("aura", "aurainsan"):  # Sezgi: aura=bekleme dolar dolmaz vurus + merkeze kilit; aurainsan=oynak zamanlama, gurultulu nisan
+                if base is None:  # kurban once saldirganin 2,5 blok onune isinlanir, sonra saga sola yurur
+                    want_pos = (attacker.x, attacker.z + 2.5)
+                    if fifo is not None and t % 20 == 1:
+                        # savrulma kurbani surukler ve Grim geri ceker: savrulmayi kapat
+                        fifo.write("attribute HapiKurban minecraft:knockback_resistance base set 1\n")
+                        fifo.write("gamemode creative HapiKurban\n")  # olmesin (olu oyuncu saldirgana gorunmez)
+                        fifo.write("tp HapiKurban %.3f %.1f %.3f\n" % (want_pos[0], attacker.y, want_pos[1]))
+                        fifo.flush()
+                    if abs(victim.x - want_pos[0]) < 0.1 and abs(victim.z - want_pos[1]) < 0.1:
+                        base = want_pos
+                        nxt[0] = t + 10
+                    else:
+                        nxt[0] = t + 1000
+                else:
+                    victim.move(base[0] + 1.2 * math.sin(t * 0.1) + (0.3 * math.sin(t * 0.37) if scenario == "aura" else 0.0), base[1])
+                attacker.lerp_tick(target)
+                pos = attacker.rpos.get(target)
+                if pos is not None:
+                    # dikey nisan: hedefin govdesine (insan botu gurultulu)
+                    want = -math.degrees(math.atan2(pos[1] + 0.9 - (attacker.y + 1.62), math.hypot(pos[0] - attacker.x, pos[2] - attacker.z)))
+                    if scenario == "aura":
+                        attacker.pitch = want
+                        attacker.look_at(pos, 0.0)
+                    elif t % 3 == 0:  # insan: gecikmeli ve gurultulu duzeltme
+                        attacker.pitch = want + random.uniform(-6, 6)
+                        attacker.look_at(pos, 5.0)
+                if t >= nxt[0]:  # elle vurus: bekleme 5 tick
+                    if scenario == "aura":
+                        attacker.attack(target)
+                        nxt[0] = t + 5
+                    else:
+                        attacker.attack(target) if random.random() < 0.8 else attacker.swing()
+                        nxt[0] = t + 5 + random.choice([0, 1, 1, 2, 2, 3, 3, 4, 5, 7, 9])
             elif scenario in ("duvar", "acik"):  # kurban 3 blok onde sabit; duvar=araya tas duvar orulur, acik=duvar kaldirilir
                 bx, bz = attacker.x, attacker.z + 3.0
                 if fifo is not None and t % 20 == 1 and t < 100:

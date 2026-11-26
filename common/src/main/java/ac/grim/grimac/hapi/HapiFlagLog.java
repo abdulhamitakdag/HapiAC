@@ -43,6 +43,11 @@ public final class HapiFlagLog {
     private static final Map<String, LongAdder> BY_SETBACK = new ConcurrentHashMap<>();
     private static final ConcurrentLinkedQueue<String> QUEUE = new ConcurrentLinkedQueue<>();
     private static final AtomicInteger QUEUED = new AtomicInteger();
+    // Dovus telemetrisi ayri dosyaya (dovus-YYYY-AA-GG.log) yazilir; satirlari uzundur
+    private static final ConcurrentLinkedQueue<String> TEL_QUEUE = new ConcurrentLinkedQueue<>();
+    private static final AtomicInteger TEL_QUEUED = new AtomicInteger();
+    private static final int MAX_TEL_QUEUE = 2_000;
+    private static int flushCount; // yalniz flush() icinde
     private static final LongAdder DROPPED = new LongAdder();
 
     private static volatile boolean fileEnabled = true;
@@ -136,6 +141,25 @@ public final class HapiFlagLog {
         }
     }
 
+    /** Biten bir dovusun tick tick ham kaydi (bkz. CombatTracker); ayri dosyaya yazilir. */
+    public static void recordTelemetry(GrimPlayer player, String header, String ticks) {
+        try {
+            if (!fileEnabled || TEL_QUEUED.get() >= MAX_TEL_QUEUE) return;
+            String name = player.getName();
+            String world = player.getWorldName();
+            String brand = player.getBrand();
+            if (brand == null) brand = "?";
+            if (brand.length() > 32) brand = brand.substring(0, 32);
+            TEL_QUEUE.add(LocalTime.now().format(TIME) + '\t' + (name == null ? "?" : name) + '\t' + player.uuid + '\t'
+                    + (world == null ? "?" : world) + '\t' + player.getTransactionPing() + '\t'
+                    + player.getClientVersion().getReleaseName() + '\t' + clean(brand) + '\t' + header + '\t' + ticks);
+            TEL_QUEUED.incrementAndGet();
+            ensureWriter();
+        } catch (RuntimeException e) {
+            DROPPED.increment();
+        }
+    }
+
     private static void write(GrimPlayer player, String name, String world, String check, int vl, String detail) {
         if (!fileEnabled) return;
         if (QUEUED.get() >= MAX_QUEUE) {
@@ -182,11 +206,14 @@ public final class HapiFlagLog {
 
     /** Kuyruktaki satirlari diske yazar. Sunucu kapanirken de cagrilabilir. */
     public static synchronized void flush() {
-        if (QUEUE.isEmpty()) return;
+        if (++flushCount % 150 == 0) HapiSezgi.save(); // ~5 dakikada bir
+        if (QUEUE.isEmpty() && TEL_QUEUE.isEmpty()) return;
         try {
             File dir = new File(GrimAPI.INSTANCE.getGrimPlugin().getDataFolder(), "hapi");
             if (!dir.isDirectory() && !dir.mkdirs()) return;
             final LocalDate today = LocalDate.now();
+            flushTelemetry(dir, today);
+            if (QUEUE.isEmpty()) return;
             if (!today.equals(lastCleanup)) {
                 lastCleanup = today;
                 cleanup(dir, today);
@@ -225,9 +252,25 @@ public final class HapiFlagLog {
         }
     }
 
+    private static void flushTelemetry(File dir, LocalDate today) throws IOException {
+        if (TEL_QUEUE.isEmpty()) return;
+        File file = new File(dir, "dovus-" + today + ".log");
+        final boolean full = file.length() >= maxFileBytes;
+        try (BufferedWriter out = full ? null : Files.newBufferedWriter(file.toPath(), StandardCharsets.UTF_8,
+                StandardOpenOption.CREATE, StandardOpenOption.APPEND)) {
+            String line;
+            while ((line = TEL_QUEUE.poll()) != null) {
+                TEL_QUEUED.decrementAndGet();
+                if (out == null) continue;
+                out.write(line);
+                out.write('\n');
+            }
+        }
+    }
+
     private static void cleanup(File dir, LocalDate today) {
         if (keepDays <= 0) return;
-        final File[] files = dir.listFiles((d, n) -> n.startsWith("flags-") && n.endsWith(".log"));
+        final File[] files = dir.listFiles((d, n) -> (n.startsWith("flags-") || n.startsWith("dovus-")) && n.endsWith(".log"));
         if (files == null) return;
         final LocalDate limit = today.minusDays(keepDays);
         for (File f : files) {
